@@ -61,6 +61,12 @@ def spoken_question(ask: dict) -> str:
     """The question as the puck says it: a link is its site's name."""
     summary = str(ask.get("summary") or ask.get("tool") or "do something")
     summary = re.sub(r"https?://(?:www\.)?([^/\s]+)\S*", r"\1", summary)
+    # a browser names a page's parts e14, e7: said, that's noise
+    summary = re.sub(r"\b(click|press|tap|select|check)\s+e\d+\b", r"\1 something on the page",
+                     summary, flags=re.I)
+    summary = re.sub(r"\b(fill|type)\s+e\d+\b", r"\1 in a box on the page", summary,
+                     flags=re.I)
+    summary = re.sub(r"\be\d+\b", "something on the page", summary)
     summary = summary.strip().rstrip(".")
     return f"Your agent wants to {summary[:1].lower()}{summary[1:]}. Shall I go ahead?"
 

@@ -214,6 +214,19 @@ played.
   announcement. **Still to come: the PIN** for money or anything sent
   outside the house, and checking the yes comes in the asker's voice
   (today: any voice in the reply run).
+
+  First try at the real puck: the puck asked, the person said "Yes." --
+  and was asked again, three times. **The puck labels its listening-again
+  run with its wake word** ("Okay Nabu"), so a reply told by "no wake
+  word" was never a reply: the yes went to Dvara as a new question,
+  whose turn found the same question still waiting and put it again.
+  Now a reply is the run that starts within 15 s of the puck having
+  finished saying the question (the clip's length, from FLAC's
+  STREAMINFO; for an announcement, when the puck says it's done); while
+  a question waits, a clear yes or no is its answer however the run
+  began; and the questions put at a puck are one set across turns.
+  "click e14" -- a browser's name for a part of the page -- is said as
+  "click something on the page".
 * ~~**A follow-up without the wake word.**~~ An answer whose last
   sentence is a question ends its intent with `continue_conversation:
   "1"`; the puck says it, then starts a run with no wake word. Within

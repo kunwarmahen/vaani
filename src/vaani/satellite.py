@@ -59,10 +59,11 @@ log = logging.getLogger("vaani")
 
 #: Seconds between tries when a puck can't be reached.
 RETRY = 5.0
-#: How long after an answer that asked something back the puck's run
-#: without a wake word is taken as the reply: long enough for the answer
-#: to be played first.
-FOLLOW_WITHIN = 120.0
+#: Seconds after the puck has finished saying something that asked back
+#: within which its next run is the reply. The puck labels that run with
+#: its wake word all the same, so timing is what tells a reply from a
+#: new question.
+FOLLOW_WITHIN = 15.0
 #: The longest an announcement may take to be played.
 ANNOUNCE_WITHIN = 120.0
 
@@ -74,7 +75,9 @@ class Satellite:
                  told: Callable[[str, str], None] = lambda _name, _problem: None,
                  done: Callable[[str, str, Said], None] = lambda _p, _w, _s: None,
                  begun: Callable[[str, str, Said], None] = lambda _p, _w, _s: None,
-                 noted: Callable[[], None] = lambda: None) -> None:
+                 noted: Callable[[], None] = lambda: None,
+                 seconds_of: Callable[[str], float] = lambda _url: 0.0) -> None:
+        self.seconds_of = seconds_of
         self.puck = puck
         self.noted = noted
         #: {"offers": [names], "on": [names]}: the puck's wake words, as it says
@@ -85,8 +88,8 @@ class Satellite:
         self.run: Run | None = None
         self._job: asyncio.Task | None = None
         self.connected = asyncio.Event()
-        #: (person, when) after an answer that asked something back: the
-        #: puck's next run without a wake word is their reply
+        #: (person, when the puck will have finished saying it) after words
+        #: that asked something back: a run starting soon after is the reply
         self.following: tuple[str, float] | None = None
 
     async def keep(self) -> None:
@@ -191,14 +194,16 @@ class Satellite:
         client = self.client
         if client is None or not self.connected.is_set():
             return False
-        if listen_for:
-            self.following = (listen_for, time.monotonic())
+        if listen_for:                 # until it's said, and then some
+            self.following = (listen_for, time.monotonic() + ANNOUNCE_WITHIN)
         try:
             await client.send_voice_assistant_announcement_await_response(
                 url, ANNOUNCE_WITHIN, text=words, start_conversation=bool(listen_for))
         except (APIConnectionError, OSError, TimeoutError) as exc:
             log.warning("%s: couldn't say it: %s", self.puck.name, exc)
             return False
+        if listen_for and self.following and self.following[0] == listen_for:
+            self.following = (listen_for, time.monotonic())    # said: it listens now
         return True
 
     async def _start(self, conversation_id: str, flags: int,
@@ -209,10 +214,10 @@ class Satellite:
                   answer=lambda text, wav, said: self.answer(self.puck, text, wav, said),
                   speak=self.speak)
         following, self.following = self.following, None
-        if not wake_word and following and time.monotonic() - following[1] < FOLLOW_WITHIN:
+        if following and time.monotonic() - following[1] < FOLLOW_WITHIN:
             run.said.follows = following[0]
         self.run = run
-        woke = wake_word or ("a reply" if run.said.follows else "")
+        woke = "a reply" if run.said.follows else (wake_word or "")
         log.info("%s: %s", self.puck.name, f"listening again for {run.said.follows}'s reply"
                  if run.said.follows else f"woken{f' by {wake_word!r}' if wake_word else ''}")
         self.begun(self.puck.name, woke, run.said)
@@ -220,7 +225,9 @@ class Satellite:
         async def go() -> None:
             said = await run.go()
             if said.asked_back and said.person:
-                self.following = (said.person, time.monotonic())
+                # the puck starts saying it now; it listens once it's done
+                self.following = (said.person,
+                                  time.monotonic() + self.seconds_of(said.url))
             self.done(self.puck.name, woke, said)
             log.info("%s: %s -- heard %r, answered %r%s", self.puck.name, said.ended,
                      said.heard, said.answer[:80], f" ({said.error})" if said.error else "")

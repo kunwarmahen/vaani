@@ -78,6 +78,16 @@ class Clips:
             self._kept[name] = (now, flac)
         return self.url(name)
 
+    def seconds(self, url: str) -> float:
+        """How long the answer at ``url`` takes to say (0 when unknown)."""
+        with self._lock:
+            kept = self._kept.get(url.rsplit("/", 1)[-1].removesuffix(".flac"))
+        if kept is None or kept[1][:4] != b"fLaC" or len(kept[1]) < 26:
+            return 0.0
+        info = int.from_bytes(kept[1][18:26], "big")    # FLAC's STREAMINFO
+        rate, samples = info >> 44, info & 0xFFFFFFFFF
+        return samples / rate if rate else 0.0
+
     def url(self, name: str) -> str:
         return f"http://{self.address}:{self.port}/clip/{name}.flac"
 

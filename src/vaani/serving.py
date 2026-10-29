@@ -92,11 +92,15 @@ async def serve(conf: Config) -> int:
     # each puck's turn in flight: a long one, or one stopped on a question
     # (waiting.py); the puck's next words may be the answer to that question
     flying: dict[str, Waiting] = {}
+    # the questions already put at each puck: never put twice, whichever
+    # turn finds them
+    put: dict[str, set[str]] = {}
 
     async def answer(puck: Puck, text: str, wav: bytes, said: Said) -> str:
         now, puck = fresh(puck)
         held = flying.get(puck.name)
-        if held is not None and held.ask is not None and said.follows == held.person:
+        if held is not None and held.ask is not None and (
+                said.follows == held.person or yes_or_no(text) is not None):
             said.person, said.how = held.person, "answering its question"
             said.tell()
             return await replied(puck, held, text, said)
@@ -110,7 +114,8 @@ async def serve(conf: Config) -> int:
         job = asyncio.ensure_future(asyncio.to_thread(
             dvara.ask, "/new" if new else asked.text, person=asked.person,
             agent=puck.agent or now.agent, puck=puck.name, url=conf.dvara_url, token=token))
-        held = Waiting(asked.person, puck.agent or now.agent, dvara.thread(puck.name), job)
+        held = Waiting(asked.person, puck.agent or now.agent, dvara.thread(puck.name), job,
+                       asked=put.setdefault(puck.name, set()))
         flying[puck.name] = held
         said_now = await follow(puck, held)
         if new and said_now is not None and said_now.get("stop_reason") == "new":
@@ -256,7 +261,8 @@ async def serve(conf: Config) -> int:
                                  current.name, person, current.fresh_after)
 
     satellites += [Satellite(p, hear=hear, answer=answer, speak=speak, told=told, done=done,
-                             begun=begun, noted=write) for p in conf.pucks]
+                             begun=begun, noted=write, seconds_of=clips.seconds)
+                   for p in conf.pucks]
     try:
         await asyncio.gather(freshen(), *(s.keep() for s in satellites))
     finally:

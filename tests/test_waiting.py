@@ -61,3 +61,42 @@ def test_an_answer_wins_and_a_long_turn_says_so(monkeypatch):
     assert kind == "answer" and got["text"] == "Flights found."
     _, (kind, _) = run(None, [], 0.05, monkeypatch)
     assert kind == "slow"                            # said, then finished later
+
+
+def test_a_browsers_names_for_a_pages_parts_are_not_read_out():
+    assert spoken_question({"summary": "click e14"}) == \
+        "Your agent wants to click something on the page. Shall I go ahead?"
+    assert "type in a box on the page" in spoken_question({"summary": "Type e3: Phoenix"})
+
+
+def test_a_reply_is_told_by_timing_not_by_the_wake_word_the_puck_reports(monkeypatch):
+    """The puck labels its listening-again run "Okay Nabu" too: a run
+    starting just after the question was said is the reply, one minutes
+    later a new question."""
+    import time as clock
+
+    from vaani import satellite
+    from vaani.config import Puck
+
+    class Quiet:
+        def send_voice_assistant_event(self, *_a):
+            pass
+
+    sat = satellite.Satellite(Puck("kitchen", "h", "k", "owner"), hear=None,
+                              answer=None, speak=None)
+    sat.client = Quiet()
+    starts = []
+    monkeypatch.setattr(satellite, "Run", lambda **_k: type("R", (), {
+        "said": __import__("vaani.run", fromlist=["Said"]).Said(), "stop": lambda s: None,
+        "go": lambda s: asyncio.sleep(3600)})())
+
+    async def go(following_at):
+        sat.following = ("owner", following_at)
+        sat.run = None
+        await sat._start("", 0, None, "Okay Nabu")
+        starts.append(sat.run.said.follows)
+        sat._job.cancel()
+
+    asyncio.run(go(clock.monotonic() - 2))                 # just said: the reply
+    asyncio.run(go(clock.monotonic() - 600))               # ten minutes on: new
+    assert starts == ["owner", ""]
