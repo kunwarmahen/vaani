@@ -179,7 +179,7 @@ answer first counts.
   like *"four, seven, oh, nine"*. A wrong PIN gets one more try, then
   the question goes to your phone, and five wrong in an hour locks it at
   the puck for the hour. Set a PIN with `uv run vaani pin set mahen`
-  (or on Vaani's page, under **PINs**). It's kept only as a scrambled
+  (or on Vaani's page, **Setup → PINs**). It's kept only as a scrambled
   hash, never sent to your agent, and never written in the log or on
   the page. Someone in the room can hear you say it, so pick one you
   don't use for your bank card. With no PIN set, those steps are asked
@@ -248,7 +248,15 @@ http://127.0.0.1:8797/#token=…
 ```
 
 With Sarathi, it's the **Vaani** card under **Your pages**, already
-signed in. The page shows:
+signed in. It opens on **Conversations**: what was asked at each puck
+and what your agents said back, like a chat. The list on the left has
+one conversation per puck per person (*what's the weather tomorrow? ·
+🔊 kitchen · mahen · 4 min ago*); pick one to read it on the right.
+**Steps** under an answer shows how it went. You can't write there: to
+carry a conversation on in writing, open Sarathi's home page, where
+it's in that person's list marked 🔊.
+
+The **Setup** tab shows:
 
 * **Each puck**, green while it's listening, red with the reason when
   it isn't (*"The device is using plaintext protocol"*, *not reached
@@ -305,7 +313,7 @@ so each gets their own calendar and mail:
    ```
 
 4. **Each person teaches it their voice**, with `vaani serve` running.
-   On Vaani's page: under **Voices**, pick *asha* and the puck, press
+   On Vaani's page, **Setup → Voices**: pick *asha* and the puck, press
    **Learn their voice**. Or in a terminal:
 
    ```

@@ -111,3 +111,60 @@ def test_a_pin_is_set_from_the_page_and_never_shown_back(served):
                 token="wrong-token-wrong")[0] == 401
     assert call(served, "/api/pins/forget", {"person": "asha"})[0] == 200
     assert call(served, "/api/state")[1]["pins"] == []
+
+
+def _script() -> str:
+    from importlib.resources import files
+    html = files("vaani").joinpath("static", "index.html").read_text()
+    return html[html.index("<script>") + len("<script>"):html.rindex("</script>")]
+
+
+def _node():
+    import shutil
+    node = shutil.which("node", path="/usr/bin:/usr/local/bin:/bin")
+    if node is None:
+        pytest.skip("node is not installed")
+    return node
+
+
+def test_the_pages_script_parses_and_has_both_tabs(tmp_path):
+    import subprocess
+    from importlib.resources import files
+    script = tmp_path / "page.js"
+    script.write_text(_script())
+    done = subprocess.run([_node(), "--check", str(script)], capture_output=True, text=True)
+    assert done.returncode == 0, done.stderr
+    html = files("vaani").joinpath("static", "index.html").read_text()
+    for panel in ('id="talks-view"', 'id="setup-view"', 'data-tab="talks"', 'data-tab="setup"'):
+        assert panel in html
+
+
+def test_a_conversation_is_one_puck_and_one_person_until_it_started_over():
+    # The page reads the runs as the puck keeps conversations: per puck, per
+    # person, ended by the quiet that starts the next question afresh, and
+    # only where something was heard (a silent wake stays in Setup's list).
+    import subprocess
+    js = _script()
+    fn = js[js.index("function conversations("):js.index("function drawTalks(")]
+    runs_newest_first = [
+        {"id": "6", "at": 6, "puck": "kitchen", "person": "mahen", "heard": "and tomorrow?"},
+        {"id": "5", "at": 5, "puck": "kitchen", "person": "mahen", "heard": "weather?",
+         "started_over": False},
+        {"id": "4", "at": 4, "puck": "kitchen", "person": "asha", "heard": "a timer"},
+        {"id": "3", "at": 3, "puck": "kitchen", "person": "mahen", "heard": "bins?",
+         "started_over": True},
+        {"id": "2", "at": 2, "puck": "kitchen", "person": "mahen", "heard": ""},
+        {"id": "1", "at": 1, "puck": "hall", "person": "mahen", "heard": "lights"},
+    ]
+    probe = (fn + f"const got = conversations({json.dumps(runs_newest_first)}, "
+             "[{name: 'kitchen', working: {person: 'mahen'}}]);"
+             "process.stdout.write(JSON.stringify(got.map((c) => "
+             "[c.puck, c.person, c.runs.map((r) => r.id), Boolean(c.working)])));")
+    done = subprocess.run([_node(), "-e", probe], capture_output=True, text=True)
+    assert done.returncode == 0, done.stderr
+    assert json.loads(done.stdout) == [
+        ["kitchen", "mahen", ["5", "6"], True],
+        ["kitchen", "asha", ["4"], False],
+        ["kitchen", "mahen", ["3"], False],
+        ["hall", "mahen", ["1"], False],
+    ]

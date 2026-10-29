@@ -119,6 +119,45 @@ form.learn select { border: 1px solid var(--line); border-radius: 8px; padding: 
 .said { min-height: 1.5em; font-size: 14px; color: var(--ink-2); margin-top: 8px; }
 .said.bad { color: var(--bad); }
 footer { margin-top: 36px; color: var(--ink-3); font-size: 13px; }
+
+/* Two tabs: the pucks' conversations, read as a chat, and setting them up. */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 0 0 18px; }
+.tab { font: inherit; font-size: 15px; color: var(--ink-2); background: none; border: 0;
+       border-bottom: 2px solid transparent; padding: 8px 12px; cursor: pointer; }
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ring); font-weight: 650; }
+.talks { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 16px;
+         min-height: 60vh; }
+.talk-list { display: grid; gap: 4px; align-content: start; }
+.talk-row { font: inherit; text-align: left; background: none; border: 1px solid transparent;
+            border-radius: 10px; padding: 8px 10px; cursor: pointer; color: var(--ink);
+            display: grid; gap: 1px; }
+.talk-row:hover { background: var(--sunk); }
+.talk-row[aria-current="true"] { background: var(--ring-soft); border-color: var(--ring-soft); }
+.talk-row .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.talk-row .m { font-size: 12.5px; color: var(--ink-3); }
+.talk { background: var(--sheet); border: 1px solid var(--line); border-radius: 14px;
+        padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.talk-head { display: grid; gap: 2px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.talk-head b { font-size: 17px; }
+.talk-head span { color: var(--ink-3); font-size: 13px; }
+.said-line { display: flex; flex-direction: column; gap: 4px; }
+.said-line .who { font-size: 12px; color: var(--ink-3); }
+.said-line.you { align-items: flex-end; }
+.said-line.you .words { background: var(--ring-soft); padding: 8px 13px;
+                        border-radius: 16px 16px 4px 16px; max-width: 85%; overflow-wrap: anywhere; }
+.said-line.agent .words { overflow-wrap: anywhere; white-space: pre-wrap; line-height: 1.55; }
+.said-line.agent .words.bad { color: var(--bad); }
+.said-line details summary { font-size: 12px; color: var(--ink-3); cursor: pointer; }
+.said-line details .steps { margin-top: 4px; }
+.talk-foot { color: var(--ink-3); font-size: 13px; border-top: 1px solid var(--line); padding-top: 10px; }
+.back-all { display: none; }
+.btn.link.back-all:hover { color: var(--ring); }
+@media (max-width: 700px) {
+  .talks { grid-template-columns: 1fr; }
+  .talks.reading .talk-list { display: none; }
+  .talks:not(.reading) .talk { display: none; }
+  .back-all { display: inline-block; justify-self: start; }
+}
 @media (max-width: 560px) {
   .state-line { margin-left: 0; text-align: left; }
   .mark { font-size: 44px; }
@@ -137,6 +176,23 @@ footer { margin-top: 36px; color: var(--ink-3); font-size: 13px; }
   <div id="problem" class="note bad" role="alert" hidden></div>
 
   <main id="main" hidden>
+    <div class="tabs" role="tablist" aria-label="Vaani">
+      <button type="button" class="tab" role="tab" id="tab-talks" data-tab="talks" aria-controls="talks-view">Conversations</button>
+      <button type="button" class="tab" role="tab" id="tab-setup" data-tab="setup" aria-controls="setup-view">Setup</button>
+    </div>
+
+    <section id="talks-view" role="tabpanel" aria-labelledby="tab-talks">
+      <p class="lede">What was asked at each puck and what your agents said back, one
+        conversation per puck per person, as it happened. To carry one on in writing,
+        open Sarathi's home page: it's in your list there, marked 🔊. Vaani keeps the last
+        fifty questions; Dvara keeps every conversation, in each person's own list.</p>
+      <div class="talks" id="talks">
+        <div class="talk-list" id="talk-list"></div>
+        <div class="talk" id="talk"></div>
+      </div>
+    </section>
+
+    <div id="setup-view" role="tabpanel" aria-labelledby="tab-setup" hidden>
     <section aria-labelledby="h-pucks">
       <h2 id="h-pucks">Pucks</h2>
       <div id="pucks" class="pucks"></div>
@@ -188,6 +244,7 @@ footer { margin-top: 36px; color: var(--ink-3); font-size: 13px; }
         <div id="pin-said" class="said" role="status"></div>
       </div>
     </section>
+    </div>
   </main>
   <footer id="foot"></footer>
 </div>
@@ -290,6 +347,7 @@ function drawState(got) {
       `more. ${e.person} says the wake word, then any sentence; the puck counts down. `, stop);
   }
   drawRuns(got.runs || [], pucks.filter((p) => p.working));
+  drawTalks(got.runs || [], pucks.filter((p) => p.working));
   drawVoices(got);
   drawPins(got);
   document.getElementById("foot").textContent =
@@ -318,40 +376,151 @@ function drawRuns(runs, working) {
     return;
   }
   list.replaceChildren(...working.map(workingNow), ...runs.map((r) => {
-    const took = r.took || {};
-    const steps = [];
-    const step = (label, ok, small, kind) => steps.push(h(`span.step${kind || (ok ? "" : ".bad")}`,
-      {}, label, small ? h("small", {}, ` ${small}`) : null));
-    // a run still going says the step it's on; a fetch comes just after the end
-    const spent = Object.values(took).reduce((a, b) => a + b, 0);
-    const fresh = Date.now() / 1000 - (r.at || 0) - spent < 20;
-    const reply = r.woke_by === "a reply";
-    if (reply) step("listening again", true, "for the reply, no wake word");
-    else if (r.woke_by === "said by itself") step("said by itself", true, "a long turn's end");
-    else step("woken", true, r.woke_by ? `by ${r.woke_by}` : "");
-    // no reply to a question back is fine: the person just didn't answer it
-    if (r.ended === "silence" || r.ended === "stopped") step(reply ? "no reply" : "nothing said", reply);
-    if (r.heard || took.hear != null) step(r.heard ? "heard" : "heard nothing", !!r.heard,
-                                           took.hear != null ? `${took.hear}s` : "");
-    if (r.person) step(`as ${r.person}`, true, r.how || "");
-    if (took.agent != null) step("agent", !!r.answer && !r.error, `${took.agent}s`);
-    if (took.speak != null) step("spoken", true, `${took.speak}s`);
-    if (r.live && !r.error) {
-      if (!r.ended) step("listening…", true, "", ".now");
-      else if (took.hear == null) step("hearing…", true, "", ".now");
-      else if (took.agent == null && r.heard) step("agent working…", true, "", ".now");
-      else if (took.speak == null && r.answer) step("speaking…", true, "", ".now");
-    }
-    if (r.url && !r.fetched && (r.live || fresh)) step("puck fetching…", true, "", ".now");
-    else if (r.url) step(r.fetched ? "played" : "never fetched", !!r.fetched,
-                         r.fetched ? "" : "the puck didn't come for it");
+    const steps = runSteps(r);
     const said = r.error && !r.answer ? r.error : r.answer;
     return h(`li.run${r.live ? ".live" : ""}`, {},
       h("div.top", {}, h("span.puckname", {}, r.puck || "?"), h("span.when", {}, ago(r.at))),
       r.heard ? h("div.heard", {}, "“", r.heard, "”") : null,
       said ? h(`div.${r.error ? "error" : "answer"}`, {}, "→ ", said) : null,
-      h("div.steps", {}, ...steps.flatMap((s, i) => (i ? [h("span.arrow", {}, "→"), s] : [s]))));
+      stepsRow(steps));
   }));
+}
+
+function stepsRow(steps) {
+  return h("div.steps", {}, ...steps.flatMap((s, i) => (i ? [h("span.arrow", {}, "→"), s] : [s])));
+}
+
+// Each step of one run as a chip: woken, heard, whose, the agent, spoken,
+// fetched; the one it's on now breathing, the one that stopped red.
+function runSteps(r) {
+  const took = r.took || {};
+  const steps = [];
+  const step = (label, ok, small, kind) => steps.push(h(`span.step${kind || (ok ? "" : ".bad")}`,
+    {}, label, small ? h("small", {}, ` ${small}`) : null));
+  // a run still going says the step it's on; a fetch comes just after the end
+  const spent = Object.values(took).reduce((a, b) => a + b, 0);
+  const fresh = Date.now() / 1000 - (r.at || 0) - spent < 20;
+  const reply = r.woke_by === "a reply";
+  if (reply) step("listening again", true, "for the reply, no wake word");
+  else if (r.woke_by === "said by itself") step("said by itself", true, "a long turn's end");
+  else step("woken", true, r.woke_by ? `by ${r.woke_by}` : "");
+  // no reply to a question back is fine: the person just didn't answer it
+  if (r.ended === "silence" || r.ended === "stopped") step(reply ? "no reply" : "nothing said", reply);
+  if (r.heard || took.hear != null) step(r.heard ? "heard" : "heard nothing", !!r.heard,
+                                         took.hear != null ? `${took.hear}s` : "");
+  if (r.person) step(`as ${r.person}`, true, r.how || "");
+  if (took.agent != null) step("agent", !!r.answer && !r.error, `${took.agent}s`);
+  if (took.speak != null) step("spoken", true, `${took.speak}s`);
+  if (r.live && !r.error) {
+    if (!r.ended) step("listening…", true, "", ".now");
+    else if (took.hear == null) step("hearing…", true, "", ".now");
+    else if (took.agent == null && r.heard) step("agent working…", true, "", ".now");
+    else if (took.speak == null && r.answer) step("speaking…", true, "", ".now");
+  }
+  if (r.url && !r.fetched && (r.live || fresh)) step("puck fetching…", true, "", ".now");
+  else if (r.url) step(r.fetched ? "played" : "never fetched", !!r.fetched,
+                       r.fetched ? "" : "the puck didn't come for it");
+  return steps;
+}
+
+/* -- the conversations: the same runs, read as a chat ----------------------
+   One conversation per puck per person, as the puck keeps it: a run marked
+   started_over (the quiet that starts the next question afresh, Settings →
+   Vaani) ends it. Only runs where something was heard; the ones where
+   nothing was said stay in Setup's step-by-step list. Read-only: the
+   conversation is Dvara's, carried on from Sarathi's list. */
+
+const talks = { sel: "", sig: "" };
+
+function conversations(runs, working) {
+  const open = {};
+  const out = [];
+  for (const r of [...runs].reverse()) {          // oldest first
+    if (!r.heard) continue;
+    const key = `${r.puck}\u0000${r.person || ""}`;
+    let c = open[key];
+    if (!c) {
+      c = { id: `${r.puck}:${r.person || ""}:${r.id || r.at}`, puck: r.puck, person: r.person, runs: [] };
+      open[key] = c;
+      out.push(c);
+    }
+    c.runs.push(r);
+    if (r.started_over) delete open[key];
+  }
+  for (const w of working) {
+    const c = open[`${w.name}\u0000${w.working.person || ""}`];
+    if (c) c.working = w.working;
+  }
+  return out.sort((a, b) => (b.runs.at(-1).at || 0) - (a.runs.at(-1).at || 0));
+}
+
+function drawTalks(runs, working) {
+  const list = conversations(runs, working);
+  const sig = JSON.stringify([list.map((c) => [c.id, c.runs.map((r) => [r.id, r.answer, r.live,
+    r.fetched ? 1 : 0, r.took])]), talks.sel, working.map((w) => w.working)]);
+  if (sig === talks.sig) return;
+  talks.sig = sig;
+  const box = document.getElementById("talk-list");
+  const talk = document.getElementById("talk");
+  if (!list.length) {
+    box.replaceChildren(h("p.empty", {}, "None yet."));
+    talk.replaceChildren(h("p.empty", {}, "Say the wake word at a puck and ask something; " +
+      "the conversation shows here as it happens."));
+    return;
+  }
+  if (!list.some((c) => c.id === talks.sel)) talks.sel = list[0].id;
+  box.replaceChildren(...list.map((c) => {
+    const b = h("button.talk-row", { type: "button", "aria-current": String(c.id === talks.sel) },
+      h("span.t", {}, c.runs[0].heard),
+      h("span.m", {}, `🔊 ${c.puck} · ${c.person || "someone"} · ${ago(c.runs.at(-1).at)}`));
+    b.addEventListener("click", () => {
+      talks.sel = c.id;
+      document.getElementById("talks").classList.add("reading");
+      look();
+    });
+    return b;
+  }));
+  const c = list.find((x) => x.id === talks.sel);
+  const back = h("button.btn.link.back-all", { type: "button" }, "← All conversations");
+  back.addEventListener("click", () => {
+    document.getElementById("talks").classList.remove("reading");
+  });
+  const lines = c.runs.flatMap((r) => {
+    const said = r.error && !r.answer ? r.error : r.answer;
+    const steps = h("details", {}, h("summary", {}, "Steps"), stepsRow(runSteps(r)));
+    return [
+      h("div.said-line.you", {}, h("span.who", {}, `${c.person || "someone"} · ${ago(r.at)}`),
+        h("div.words", {}, r.heard)),
+      h("div.said-line.agent", {}, h("span.who", {}, "Answer"),
+        said ? h(`div.words${r.error && !r.answer ? ".bad" : ""}`, {}, said)
+          : h("div.words", {}, r.live ? "…" : "(no answer)"),
+        steps),
+    ];
+  });
+  if (c.working) {
+    lines.push(h("div.said-line.agent", {}, h("span.who", {}, "Answer"),
+      h("div.steps", {}, h("span.step.now", {}, c.working.asking
+        ? "waiting for a yes" : "agent still working…"))));
+  }
+  talk.replaceChildren(back,
+    h("div.talk-head", {}, h("b", {}, c.runs[0].heard),
+      h("span", {}, `At the ${c.puck} puck, as ${c.person || "someone"} · `
+        + `${c.runs.length} question${c.runs.length === 1 ? "" : "s"}`
+        + (c.runs.at(-1).started_over ? " · started over after" : ""))),
+    ...lines,
+    h("div.talk-foot", {}, "Read here only. In writing, it carries on from Sarathi's home " +
+      `page: it's in ${c.person || "the person"}'s list there, marked 🔊 ${c.puck} puck.`));
+}
+
+/* -- the two tabs, each at its own address (#setup) so a reload stays put -- */
+
+function drawTab() {
+  const tab = location.hash.slice(1) === "setup" ? "setup" : "talks";
+  for (const b of document.querySelectorAll(".tab")) {
+    b.setAttribute("aria-selected", String(b.dataset.tab === tab));
+  }
+  document.getElementById("talks-view").hidden = tab !== "talks";
+  document.getElementById("setup-view").hidden = tab !== "setup";
 }
 
 function drawVoices(got) {
@@ -456,6 +625,14 @@ document.getElementById("learn").addEventListener("submit", (e) => {
   act("enroll", { person: document.getElementById("learn-who").value,
                   puck: document.getElementById("learn-at").value });
 });
+for (const b of document.querySelectorAll(".tab")) {
+  b.addEventListener("click", () => {
+    history.replaceState(null, "", b.dataset.tab === "setup" ? "#setup" : location.pathname);
+    drawTab();
+  });
+}
+window.addEventListener("hashchange", drawTab);
+drawTab();
 async function tick() {
   if (!document.hidden) await look();
   setTimeout(tick, busy ? LIVE_EVERY : EVERY);

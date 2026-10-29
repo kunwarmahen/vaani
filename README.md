@@ -65,7 +65,8 @@ Not yet: a different agent per person on a shared puck; telling real
 family voices apart is untried (the numbers so far are synthetic
 voices); and *Hey Jarvis*, though the puck switches to it, never woke
 ours (firmware 26.9.0). See [notes/01](notes/01-a-voice-for-the-house.md)
-and [notes/02](notes/02-whose-question.md).
+and [notes/02](notes/02-whose-question.md); the page's conversations,
+[notes/03](notes/03-the-conversations-on-the-page.md).
 
 ## Install
 
@@ -139,10 +140,16 @@ doesn't wait.
 
 **Its page.** `vaani serve` also serves a page of its own on
 127.0.0.1:8797 (`vaani page` prints its address with its key; with
-Sarathi, its card under Your pages): each puck listening or why not,
-the last questions step by step, live from the wake word (woken,
-heard, whose, each step's time, played or never fetched), a turn still
-being worked on, and the voices and PINs, set and forgotten there.
+Sarathi, its card under Your pages). **Conversations**, its first tab,
+is what was asked at each puck and what was said back, read as a chat:
+one conversation per puck per person, until a quiet spell started the
+next, each answer's steps folded under it; to carry one on in writing,
+it's in the person's list on Sarathi's home page, marked 🔊
+([notes/03](notes/03-the-conversations-on-the-page.md)). **Setup** has
+each puck listening or why not, the last questions step by step, live
+from the wake word (woken, heard, whose, each step's time, played or
+never fetched), a turn still being worked on, and the voices and PINs,
+set and forgotten there.
 `vaani runs` lists the same questions in a terminal.
 
 **Several people at one puck.** List them on the puck (`vaani puck
@@ -245,7 +252,7 @@ src/vaani/
 ├── waiting.py    a turn that asks or takes long: the question put, the answer said later
 ├── runs.py       the last fifty questions, step by step, for `vaani runs`
 ├── page.py       its own page (8797): pucks, questions, voices; a key, always
-├── static/       the page itself
+├── static/       the page itself: Conversations (the runs read as a chat) and Setup (notes/03)
 ├── keys.py       a puck's key, out of a backup of its flash
 ├── serving.py    `vaani serve`: every puck, and the answers they fetch
 ├── status.py     `vaani status --json`, `vaani keeps --json`; a lock, not a pid

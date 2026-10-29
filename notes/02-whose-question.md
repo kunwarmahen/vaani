@@ -99,6 +99,9 @@ the real puck.
   `pins.py`): the question is put at the puck; a yes counts in the
   asker's voice -- "yes, go ahead", since a plain "yes" is too short for
   a print -- and a step no standing yes covers needs their spoken PIN.
+* ~~**The conversations, not only the steps.**~~ Vaani's page reads the
+  runs as one conversation per puck per person
+  ([notes/03](03-the-conversations-on-the-page.md)).
 * **An agent per person.** A puck has one `agent`, which each of its
   people must be allowed in Dvara.
 * **One enrolled person and a stranger.** With a single print, "closer
