@@ -269,20 +269,34 @@ function drawState(got) {
     learning.replaceChildren(`Learning ${e.person}'s voice at the ${e.puck} puck: ${e.left} ` +
       `more. ${e.person} says the wake word, then any sentence; the puck counts down. `, stop);
   }
-  drawRuns(got.runs || []);
+  drawRuns(got.runs || [], pucks.filter((p) => p.working));
   drawVoices(got);
   document.getElementById("foot").textContent =
     `Vaani ${st.version || ""}${st.answers_at ? ` · answers served at ${st.answers_at}` : ""}`;
 }
 
-function drawRuns(runs) {
+// A turn still going -- past "taking a while", or stopped on a question --
+// on top, with how long and what it's waiting on, until its answer is said.
+function workingNow(p) {
+  const w = p.working;
+  const mins = Math.max(0, Math.round((Date.now() / 1000 - w.since) / 60));
+  return h("li.run.live", {},
+    h("div.top", {}, h("span.puckname", {}, p.name), h("span.when", {}, `${mins} min so far`)),
+    h("div.heard", {}, "“", w.question, "”"),
+    h("div.steps", {}, h("span.step", {}, `for ${w.person}`), h("span.arrow", {}, "→"),
+      w.asking ? h("span.step.now", {}, "waiting for your yes", h("small", {}, ` ${w.asking}`))
+               : h("span.step.now", {}, "agent still working…"),
+      h("span.arrow", {}, "→"), h("span.step", {}, "the puck says it when done")));
+}
+
+function drawRuns(runs, working) {
   const list = document.getElementById("runs");
-  if (!runs.length) {
+  if (!runs.length && !working.length) {
     list.replaceChildren(h("li.empty", {}, "None yet. Say the wake word at a puck and ask " +
       "something; it shows here as it happens."));
     return;
   }
-  list.replaceChildren(...runs.map((r) => {
+  list.replaceChildren(...working.map(workingNow), ...runs.map((r) => {
     const took = r.took || {};
     const steps = [];
     const step = (label, ok, small, kind) => steps.push(h(`span.step${kind || (ok ? "" : ".bad")}`,
@@ -369,7 +383,8 @@ async function look() {
     document.getElementById("main").hidden = false;
     document.getElementById("problem").hidden = true;
     busy = (got.runs || []).some((r) => r.live || (r.url && !r.fetched &&
-      Date.now() / 1000 - (r.at || 0) < 120));
+      Date.now() / 1000 - (r.at || 0) < 120)) ||
+      (got.status?.pucks || []).some((p) => p.working);
     drawState(got);
   } catch (err) {
     if (!token) return;

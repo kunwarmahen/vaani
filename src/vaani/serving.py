@@ -54,6 +54,13 @@ async def serve(conf: Config) -> int:
                  "127.0.0.1" if conf.page_host in ("0.0.0.0", "::") else conf.page_host,
                  page.port)
 
+    # each puck's turn in flight: a long one, or one stopped on a question
+    # (waiting.py); the puck's next words may be the answer to that question
+    flying: dict[str, Waiting] = {}
+    # the questions already put at each puck: never put twice, whichever
+    # turn finds them
+    put: dict[str, set[str]] = {}
+
     # each puck held or not, and why: what `vaani status` and Sarathi's
     # Check say, so "running" is never mistaken for "listening"
     held = {p.name: "not reached yet" for p in conf.pucks}
@@ -63,6 +70,8 @@ async def serve(conf: Config) -> int:
             "pid": os.getpid(), "answers_at": f"http://{address}:{clips.port}/clip/",
             "page_port": page.port if page else 0,
             "pucks": [p.name for p in conf.pucks], "problems": held,
+            # turns still being worked on (a long one, or one on a question)
+            "working": {name: w.shown() for name, w in flying.items()},
             "wake_words": {s.puck.name: s.wakes for s in satellites if s.wakes}}))
 
     satellites: list[Satellite] = []
@@ -89,12 +98,6 @@ async def serve(conf: Config) -> int:
             log.warning("vaani.toml can't be read now (%s); going on as before", exc)
             return conf, puck
 
-    # each puck's turn in flight: a long one, or one stopped on a question
-    # (waiting.py); the puck's next words may be the answer to that question
-    flying: dict[str, Waiting] = {}
-    # the questions already put at each puck: never put twice, whichever
-    # turn finds them
-    put: dict[str, set[str]] = {}
 
     async def answer(puck: Puck, text: str, wav: bytes, said: Said) -> str:
         now, puck = fresh(puck)
@@ -115,8 +118,10 @@ async def serve(conf: Config) -> int:
             dvara.ask, "/new" if new else asked.text, person=asked.person,
             agent=puck.agent or now.agent, puck=puck.name, url=conf.dvara_url, token=token))
         held = Waiting(asked.person, puck.agent or now.agent, dvara.thread(puck.name), job,
-                       asked=put.setdefault(puck.name, set()))
+                       asked=put.setdefault(puck.name, set()), question=asked.text,
+                       since=time.time())
         flying[puck.name] = held
+        write()
         said_now = await follow(puck, held)
         if new and said_now is not None and said_now.get("stop_reason") == "new":
             # Dvara's words are for a chat (/chats); the puck says it plainly
@@ -139,6 +144,7 @@ async def serve(conf: Config) -> int:
         if kind == "ask":
             log.info("%s: its agent asks %s: %s", puck.name, held.person,
                      got.get("summary", "")[:80])
+            write()
             return spoken_question(got)
         asyncio.ensure_future(later(puck, held))
         return "This is taking a while. I'll tell you here when it's done."
@@ -155,6 +161,7 @@ async def serve(conf: Config) -> int:
             held.again = True
             return "Sorry, was that a yes or a no?"
         ask, held.ask = held.ask, None
+        write()
         try:
             landed = await asyncio.to_thread(dvara.answer, ask["id"], verdict,
                                              person=held.person, url=conf.dvara_url,
@@ -181,24 +188,31 @@ async def serve(conf: Config) -> int:
                 log.warning("%s: a long turn failed: %s", puck.name, exc)
                 return
             if kind == "ask":
-                await say_later(puck, held, spoken_question(got), held.person)
+                write()
+                await say_later(puck, held, spoken_question(got), held.person,
+                                how="asked while working")
                 return                 # the reply run carries it on (replied)
             landed(puck, held)
             words = words_of(held, got)
             await say_later(puck, held, words,
-                            held.person if asks_back(aloud(words)) else "")
+                            held.person if asks_back(aloud(words)) else "",
+                            how=f"finished after {round((time.time() - held.since) / 60)} min")
             return
 
     def landed(puck: Puck, held: Waiting) -> None:
         """``held`` is over; a newer turn at the same puck stays."""
         if flying.get(puck.name) is held:
             del flying[puck.name]
+            write()
 
-    async def say_later(puck: Puck, held: Waiting, words: str, listen_for: str) -> None:
+    async def say_later(puck: Puck, held: Waiting, words: str, listen_for: str,
+                        how: str = "") -> None:
         sat = next((s for s in satellites if s.puck.name == puck.name), None)
         url = await speak(aloud(words) or "Done.")
+        # under the question it answers, so the history reads as one story
         book.add({"puck": puck.name, "woke_by": "said by itself", "answer": words,
-                  "person": held.person, "url": url, "ended": "announced"})
+                  "heard": held.question, "person": held.person, "how": how,
+                  "url": url, "ended": "announced"})
         if sat is None or not await sat.announce(url, words, listen_for=listen_for):
             log.warning("%s: couldn't say it at the puck: %s", puck.name, words[:80])
 

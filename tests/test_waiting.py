@@ -100,3 +100,11 @@ def test_a_reply_is_told_by_timing_not_by_the_wake_word_the_puck_reports(monkeyp
     asyncio.run(go(clock.monotonic() - 2))                 # just said: the reply
     asyncio.run(go(clock.monotonic() - 600))               # ten minutes on: new
     assert starts == ["owner", ""]
+
+
+def test_a_turn_still_going_is_shown_with_what_it_waits_on(monkeypatch):
+    held, _ = run(None, [[{"id": "a9", "thread": "vaani:kitchen",
+                           "summary": "open a browser"}]], 5, monkeypatch)
+    held.question, held.since = "find me a flight", 100.0
+    assert held.shown() == {"person": "mahen", "question": "find me a flight",
+                            "since": 100.0, "asking": "open a browser"}

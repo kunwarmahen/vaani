@@ -84,6 +84,14 @@ class Waiting:
     asked: set[str] = field(default_factory=set)
     #: a "was that a yes or a no?" already said for the current question
     again: bool = False
+    #: what was asked, and when: what the page shows while it's worked on
+    question: str = ""
+    since: float = 0.0
+
+    def shown(self) -> dict:
+        """The page's line for it: whose, what, since when, waiting on what."""
+        return {"person": self.person, "question": self.question, "since": self.since,
+                "asking": str((self.ask or {}).get("summary") or "")}
 
 
 async def outcome(waiting: Waiting, *, asks: Callable[[], Awaitable[list[dict]]],

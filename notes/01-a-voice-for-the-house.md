@@ -227,6 +227,13 @@ played.
   began; and the questions put at a puck are one set across turns.
   "click e14" -- a browser's name for a part of the page -- is said as
   "click something on the page".
+
+  Then it worked -- several yeses at the puck carried a flight search on
+  -- but once the puck said "taking a while", its page showed nothing of
+  the turn still going. Now the serve's record says each puck's turn in
+  flight (`working`: whose, what, since when, the question it waits on),
+  the page shows it on top, and the answer said later is recorded under
+  the question it answers.
 * ~~**A follow-up without the wake word.**~~ An answer whose last
   sentence is a question ends its intent with `continue_conversation:
   "1"`; the puck says it, then starts a run with no wake word. Within
