@@ -75,6 +75,8 @@ You need, on this computer or the house's network:
 ## Set it up
 
 ```
+sudo setfacl -m u:$USER:rw /dev/ttyACM0   # may open the puck's USB port, until unplugged
+sudo usermod -aG dialout $USER            # ... or for good, from the next log-in
 vaani backup                       # the puck's whole flash, read twice (USB-C)
 vaani key ~/puck-backup/puck-flash.bin   # its key, out of that backup
 vaani init --puck kitchen --host 192.168.1.55 --person mahen --agent minder

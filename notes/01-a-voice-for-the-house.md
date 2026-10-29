@@ -153,7 +153,7 @@ as the puck sends them:
 ('INTENT_START', {})
 ('INTENT_END', {'continue_conversation': '0'})
 ('TTS_START', {'text': '4'})
-('TTS_END', {'url': 'http://127.0.0.1:39985/clip/Lxj3HJQ7MiqbM947PTXRFy31.wav'})
+('TTS_END', {'url': 'http://127.0.0.1:39985/clip/Lxj3HJQ7MiqbM947PTXRFy31.wav'})   # FLAC since
 ('RUN_END', {})
 fetched 24620 bytes of b'RIFF' | ended: speech
 ```
@@ -184,5 +184,6 @@ played.
   the same voice answers yes or no, and money or anything sent outside
   the house also needs the person's spoken PIN.
 * **A follow-up without the wake word** (`continue_conversation`).
-* **Sarathi** starting Vaani with everything else, and its settings on
-  the home page.
+* ~~**Sarathi**~~ starts Vaani with everything else (`[vaani] on`), and
+  its Settings → Vaani tab shows each run and sets the puck's people
+  and voices.

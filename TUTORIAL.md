@@ -41,12 +41,21 @@ Before anything else, keep a copy of everything on the puck. It's how
 you'd put it back exactly as it was, and it's also where its key comes
 from.
 
-Plug the puck into this computer with USB-C. Let yourself open it
-(once; it lasts until you unplug):
+Plug the puck into this computer with USB-C. It shows up as
+`/dev/ttyACM0` (`ls /dev/ttyACM*` while it's plugged in; unplug it and
+the name goes away). Ordinary users aren't allowed to open it, so
+first give yourself permission, one of two ways:
 
 ```
-sudo setfacl -m u:$USER:rw /dev/ttyACM0
+sudo setfacl -m u:$USER:rw /dev/ttyACM0     # for now: until you unplug it
+sudo usermod -aG dialout $USER              # for good: from your next log-in
 ```
+
+The first works straight away, but only for this time plugged in. The
+second puts you in the group that may use serial ports (`dialout`), so
+you never need to do it again, but it only takes effect after you log
+out and back in (or restart). Doing both is fine. Without either,
+`vaani backup` stops and tells you which line to run.
 
 Then:
 
@@ -160,6 +169,9 @@ The whole answer is also in Dvara's record of what each message did
 | *"Sorry, I couldn't make out any words."* | Whisper heard nothing, or isn't running | `vaani hear q.wav` |
 | The ring finishes but no sound | The puck can't reach port 8799 | no `answer fetched by …` line in the log: the `ufw` line in Step 5; `[serve] address` if this computer has several |
 | `… can be read by others; chmod 600 …` | The key file is open to others | run the `chmod` it shows |
+| `/dev/ttyACM0 can't be opened` (backup) | you may not open the puck's USB port | the two `sudo` lines in Step 2 |
+| The log says *it had no key … gave it a new one* | You deleted the puck from Home Assistant, which wipes its key | nothing: Vaani gave it a new one. The key in your backup's `api-key.txt` is now the old one |
+| Settings → Vaani: a question ends *never fetched* | Vaani answered, the puck never came for the sound | the `ufw` line in Step 5 |
 
 ## Watching it
 

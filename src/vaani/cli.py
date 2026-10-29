@@ -333,8 +333,9 @@ def _backup(args) -> int:
     out = Path(args.out).expanduser()
     out.mkdir(mode=0o700, parents=True, exist_ok=True)
     if not os.access(args.port, os.R_OK | os.W_OK):
-        raise ConfigError(f"{args.port} can't be opened: sudo setfacl -m u:$USER:rw "
-                          f"{args.port}  (or join the dialout group)")
+        raise ConfigError(f"{args.port} can't be opened: `sudo setfacl -m u:$USER:rw "
+                          f"{args.port}` (until unplugged), or `sudo usermod -aG dialout "
+                          "$USER` (for good, from your next log-in)")
     reads = []
     for n in (1, 2):
         made = out / f"puck-flash-read{n}.bin"
