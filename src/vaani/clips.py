@@ -13,11 +13,14 @@ the system would send from), which is right on a house's one network.
 
 from __future__ import annotations
 
+import logging
 import secrets
 import socket
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+log = logging.getLogger("vaani")
 
 #: How long an answer waits to be fetched.
 KEEP = 300.0
@@ -32,13 +35,17 @@ class Clips:
 
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self) -> None:           # noqa: N802 -- the stdlib's name
-                name = self.path.removeprefix("/clip/").removesuffix(".wav")
+                name = self.path.removeprefix("/clip/").removesuffix(".flac")
                 body = clips.get(name) if self.path.startswith("/clip/") else None
                 if body is None:
+                    log.warning("a clip was asked for that isn't here (%s, from %s)",
+                                self.path[:40], self.client_address[0])
                     self.send_error(404)
                     return
+                log.info("answer fetched by %s (%d KB)", self.client_address[0],
+                         len(body) // 1024)
                 self.send_response(200)
-                self.send_header("Content-Type", "audio/wav")
+                self.send_header("Content-Type", "audio/flac")
                 self.send_header("Content-Length", str(len(body)))
                 self.end_headers()
                 self.wfile.write(body)
@@ -59,14 +66,14 @@ class Clips:
         self._server.shutdown()
         self._server.server_close()
 
-    def add(self, wav: bytes) -> str:
-        """``wav`` kept; the address the puck fetches it from."""
+    def add(self, flac: bytes) -> str:
+        """``flac`` kept; the address the puck fetches it from."""
         name = secrets.token_urlsafe(18)
         now = time.monotonic()
         with self._lock:
             self._kept = {k: v for k, v in self._kept.items() if now - v[0] < KEEP}
-            self._kept[name] = (now, wav)
-        return f"http://{self.address}:{self.port}/clip/{name}.wav"
+            self._kept[name] = (now, flac)
+        return f"http://{self.address}:{self.port}/clip/{name}.flac"
 
     def get(self, name: str) -> bytes | None:
         with self._lock:

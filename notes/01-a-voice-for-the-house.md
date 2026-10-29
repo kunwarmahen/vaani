@@ -79,6 +79,15 @@ The address is this computer's own on the way to the puck, unless
 `[serve] address` says otherwise, and the port (8799) must be open to
 the puck.
 
+**IN THE PUCK'S OWN FORMAT.** The puck lists what its player takes:
+FLAC at 48 kHz. Given Piper's WAV it fetched it and gave up ("Could
+not determine audio file type"), so the ring spun and went out with
+nothing said. `flac.py` writes FLAC with no library: the samples kept
+as they are ("verbatim"), stretched from 22 050 to 48 000 Hz, plus the
+format's headers and two checksums. Each fetch is a line in the log
+(`answer fetched by 192.168.1.55`), so a silent puck shows whether it
+asked at all.
+
 **EVERY FAILURE IS SAID, OUT LOUD WHEN IT CAN BE.** Nobody reads a
 kitchen puck's log. Whisper hearing nothing, Dvara not answering: the
 puck says so ("I couldn't reach your agent just now"). If Piper is down
@@ -147,7 +156,14 @@ Check said *Vaani is listening* -- both now fixed. Then:
 ```
 kitchen: it had no key (let go by Home Assistant?); gave it a new one, kept in ~/.config/vaani/kitchen.key
 09:45:36 kitchen: listening (home-assistant-voice-091194, Nabu Casa.Home Assistant Voice PE 26.9.0), answering as owner
+11:45:10 kitchen: woken by 'Okay Nabu'
+11:46:18 kitchen: speech -- heard 'What day is it?', answered "It's Thursday, October 29, 2026."
 ```
+
+and the puck said nothing. Its own log (ESPHome's, read over the same
+API) told why: `micro_decoder.audio_reader: Could not determine audio
+file type from URL or Content-Type`. The same sentence as FLAC at 48 kHz
+played.
 
 ## What is not here yet
 

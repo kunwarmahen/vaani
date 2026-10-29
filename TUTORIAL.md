@@ -158,7 +158,7 @@ The whole answer is also in Dvara's record of what each message did
 | `vaani status` says *not listening: …* (Sarathi's Check: *the kitchen puck isn't listening*) | Vaani is running but can't hold the puck; the reason is on the line | the reason says which: the address, the key, or Home Assistant |
 | *"Sorry, I couldn't reach your agent just now."* | Dvara isn't running, or the token is wrong | `vaani ask "hi"` says which |
 | *"Sorry, I couldn't make out any words."* | Whisper heard nothing, or isn't running | `vaani hear q.wav` |
-| The ring finishes but no sound | The puck can't reach port 8799 | the `ufw` line in Step 5; `[serve] address` if this computer has several |
+| The ring finishes but no sound | The puck can't reach port 8799 | no `answer fetched by …` line in the log: the `ufw` line in Step 5; `[serve] address` if this computer has several |
 | `… can be read by others; chmod 600 …` | The key file is open to others | run the `chmod` it shows |
 
 ## Step 7 · Everyone in the house, each their own

@@ -13,7 +13,7 @@ import json
 import logging
 import os
 
-from vaani import asking, dvara, hearing, speaking, status
+from vaani import asking, dvara, flac, hearing, speaking, status
 from vaani import config as settings
 from vaani.clips import Clips, address_towards
 from vaani.config import Config, ConfigError, Puck
@@ -70,7 +70,7 @@ async def serve(conf: Config) -> int:
     async def speak(words: str) -> str:
         wav = await asyncio.to_thread(speaking.speak, words, host=conf.speak_host,
                                       port=conf.speak_port, voice=conf.voice)
-        return clips.add(wav)
+        return clips.add(await asyncio.to_thread(flac.from_wav, wav))
 
     satellites = [Satellite(p, hear=hear, answer=answer, speak=speak, told=told)
                   for p in conf.pucks]

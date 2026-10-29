@@ -110,7 +110,7 @@ def test_an_answer_is_served_by_its_name_and_nothing_else_is():
         url = clips.add(b"RIFF answer")
         assert urllib.request.urlopen(url).read() == b"RIFF answer"
         base = url.rsplit("/clip/", 1)[0]
-        for path in ("/", "/clip/", "/clip/guess.wav", "/../etc/passwd"):
+        for path in ("/", "/clip/", "/clip/guess.flac", "/../etc/passwd"):
             with pytest.raises(urllib.error.HTTPError):
                 urllib.request.urlopen(base + path)
     finally:
@@ -197,3 +197,22 @@ def test_a_puck_with_no_key_is_given_a_new_one_kept_first(tmp_path, monkeypatch)
     (new, kept), = given
     assert len(base64.b64decode(new)) == 32 and kept.strip() == new.decode()
     assert "b2xk" not in kept and key.stat().st_mode & 0o777 == 0o600
+
+
+def test_an_answer_is_flac_at_the_puck_s_own_rate():
+    import io
+    import wave
+
+    from vaani import flac
+    raw = io.BytesIO()
+    with wave.open(raw, "wb") as out:
+        out.setnchannels(1), out.setsampwidth(2), out.setframerate(22050)
+        out.writeframes(struct.pack("<5000h", *range(-2500, 2500)))
+    got = flac.from_wav(raw.getvalue())
+    assert got[:4] == b"fLaC" and got[8:10] == struct.pack(">H", flac.BLOCK)
+    rate_channels_bits = int.from_bytes(got[18:21], "big")
+    assert rate_channels_bits >> 4 == 48000 and (rate_channels_bits >> 1) & 7 == 0
+    total = int.from_bytes(got[21:26], "big") & 0xFFFFFFFFF
+    assert total == 5000 * 48000 // 22050
+    frames = got.count(b"\xff\xf8\x7a\x08")
+    assert frames == -(-total // flac.BLOCK)
