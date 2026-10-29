@@ -247,6 +247,42 @@ def parse(text: str, where: str = "vaani.toml") -> Config:
         pucks=tuple(pucks))
 
 
+def with_puck(text: str, name: str, changes: dict[str, str | list[str]]) -> str:
+    """vaani.toml's ``text`` with one puck's ``person``, ``agent`` or
+    ``people`` changed, every other line (and comment) as it was. The
+    result is checked as the file it will be before it is handed back."""
+    lines = text.splitlines(keepends=True)
+    starts = [i for i, line in enumerate(lines) if line.strip() == "[[puck]]"]
+    block = None
+    for start in starts:
+        end = next((i for i in range(start + 1, len(lines))
+                    if lines[i].lstrip().startswith("[")), len(lines))
+        if any(re.match(rf'\s*name\s*=\s*"{re.escape(name)}"', line)
+               for line in lines[start:end]):
+            block = (start, end)
+            break
+    if block is None:
+        raise ConfigError(f"no puck called {name} in vaani.toml")
+    start, end = block
+    for key, value in changes.items():
+        if key not in ("person", "agent", "people"):
+            raise ConfigError(f"a puck's {key} isn't changed here")
+        said = (f'{key} = [{", ".join(chr(34) + p + chr(34) for p in value)}]\n'
+                if isinstance(value, list) else f'{key} = "{value}"\n')
+        found = next((i for i in range(start, end)
+                      if re.match(rf"\s*{key}\s*=", lines[i])), None)
+        if found is not None:
+            lines[found] = said
+        else:
+            while end > start + 1 and not lines[end - 1].strip():
+                end -= 1
+            lines.insert(end, said)
+            end += 1
+    out = "".join(lines)
+    parse(out)                         # refused here, never half-written
+    return out
+
+
 def _port(value, where: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 65535:
         raise ConfigError(f"{where}: a port is a number from 1 to 65535, not {value!r}")

@@ -40,6 +40,7 @@ class Asked:
     text: str
     before: str = ""            # said before the answer ("I'm not sure who's asking")
     sample: str = ""            # a sample was taken instead: what to say back
+    how: str = ""               # why it is this person, in a few words
 
 
 def enrolling_file() -> Path:
@@ -53,12 +54,18 @@ def start_enrolling(puck: str, person: str, samples: int = SAMPLES) -> None:
                                   "first": True}))
 
 
-def _enrolling(puck: str) -> dict | None:
+def enrolling() -> dict | None:
+    """Whose samples are being taken, at which puck, how many left."""
     try:
         note = json.loads(enrolling_file().read_text())
     except (OSError, ValueError):
         return None
-    return note if note.get("puck") == puck and note.get("left", 0) > 0 else None
+    return note if isinstance(note, dict) and note.get("left", 0) > 0 else None
+
+
+def _enrolling(puck: str) -> dict | None:
+    note = enrolling()
+    return note if note and note.get("puck") == puck else None
 
 
 def whose(conf: Config, puck: Puck, text: str, wav: bytes, prints: Prints) -> Asked:
@@ -68,22 +75,25 @@ def whose(conf: Config, puck: Puck, text: str, wav: bytes, prints: Prints) -> As
         note.update(left=note["left"] - 1, first=False)
         if note["left"] > 0:
             enrolling_file().write_text(json.dumps(note))
-            return Asked(note["person"], text, sample=SAMPLE_MORE.format(left=note["left"]))
+            return Asked(note["person"], text, sample=SAMPLE_MORE.format(left=note["left"]),
+                         how=f"a voice sample ({note['left']} more)")
         enrolling_file().unlink(missing_ok=True)
         log.info("%s: %s's voice print made from %d samples", puck.name, note["person"], count)
-        return Asked(note["person"], text, sample=SAMPLE_DONE.format(person=note["person"]))
+        return Asked(note["person"], text, sample=SAMPLE_DONE.format(person=note["person"]),
+                     how="the last voice sample")
     if not puck.people:
-        return Asked(puck.person, text)
+        return Asked(puck.person, text, how="the puck's person")
     named, rest = said_name(text, puck.people)
     if named is not None:
-        return Asked(named, rest)
+        return Asked(named, rest, how="said their name")
     try:
         found = prints.match(wav, puck.people, threshold=conf.threshold, margin=conf.margin)
     except VoiceError as exc:
         log.warning("%s: can't tell voices apart: %s", puck.name, exc)
-        return Asked(puck.person, text)
+        return Asked(puck.person, text, how=f"couldn't tell voices apart: {exc}")
     log.info("%s: voice %s (%.2f, next %.2f)", puck.name, found.person or "unsure",
              found.score, found.runner_up)
     if found.person is not None:
-        return Asked(found.person, text)
-    return Asked(puck.person, text, before=UNSURE.format(person=puck.person))
+        return Asked(found.person, text, how=f"their voice ({found.score:.2f})")
+    return Asked(puck.person, text, before=UNSURE.format(person=puck.person),
+                 how=f"unsure of the voice ({found.score:.2f})")

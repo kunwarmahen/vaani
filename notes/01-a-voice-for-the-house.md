@@ -46,6 +46,15 @@ new key rather than the old one, since Home Assistant still has the
 old. ESPHome takes it as base64 text, not the 32 bytes -- given bytes,
 it just says no.
 
+**EACH RUN LEAVES A RECORD** (`runs.py`): woken by what, heard what, whose
+it was taken to be and why, how long Whisper, the agent and Piper each
+took, the answer or the error, and -- added when it happens, after the
+run has ended -- whether the puck came for the answer. The last fifty, in
+the state folder (yours alone). `vaani runs` reads them; Sarathi's
+Vaani tab shows them every few seconds. Who a puck answers (`person`,
+`agent`, `people`) is read from vaani.toml at each question, so the tab
+or `vaani puck` changes it with nothing restarted.
+
 **RUNNING IS NOT LISTENING.** The serve records, per puck, whether it is
 held and the last reason it isn't; `vaani status` and Sarathi's Check
 say that, so a serve retrying a refused puck every five seconds is red,

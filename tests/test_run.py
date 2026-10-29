@@ -5,7 +5,8 @@ person in a kitchen can't see: a run that never ends because a
 television kept talking, a wake word with nobody behind it sent to an
 agent anyway, Whisper or Dvara down and the puck just stopping, events
 out of the order the puck's light ring follows, and the words of an
-answer read out with their asterisks and links.
+answer read out with their asterisks and links, and a silent run that
+leaves no trace of which step it stopped at.
 """
 
 from __future__ import annotations
@@ -35,7 +36,7 @@ def drive(sound: bytes, *, hear=None, answer=None, speak=None, **listen):
     async def heard(_wav):
         return "what's the weather"
 
-    async def answered(text, _wav):
+    async def answered(text, _wav, _said):
         asked.append(text)
         return "**Sunny**, see [the forecast](https://example.com)."
 
@@ -88,7 +89,7 @@ def test_a_puck_that_stops_sending_ends_the_run():
 
 
 def test_dvara_down_is_said_out_loud():
-    async def down(_text, _wav):
+    async def down(_text, _wav, _said):
         raise OSError("connection refused")
     said, events, _ = drive(QUIET * 10 + tone(1.0) + QUIET * 40, answer=down)
     assert dict(events)["TTS_START"] == {"text": COULDNT_REACH}
@@ -103,7 +104,7 @@ def test_whisper_hearing_nothing_is_said_too():
 
 
 def test_when_piper_is_down_as_well_the_ring_still_stops():
-    async def down(_text, _wav):
+    async def down(_text, _wav, _said):
         raise OSError("no Dvara")
 
     async def mute(_words):
@@ -123,3 +124,19 @@ def test_what_is_read_is_what_should_be_heard():
 
 def test_events_are_the_puck_s_own_kinds():
     assert Ev.VOICE_ASSISTANT_TTS_END.name == "VOICE_ASSISTANT_TTS_END"
+
+
+def test_a_run_says_how_long_each_step_took_and_the_record_shows_the_fetch(tmp_path,
+                                                                            monkeypatch):
+    from vaani import runs
+    said, _, _ = drive(QUIET * 10 + tone(1.0) + QUIET * 40)
+    assert set(said.took) == {"hear", "agent", "speak"}
+    monkeypatch.setenv("VAANI_STATE", str(tmp_path))
+    book = runs.Book()
+    book.add({"puck": "kitchen", "heard": said.heard, "url": said.url})
+    book.add({"puck": "kitchen", "heard": "later", "url": "http://x/other.flac"})
+    assert "fetched" not in runs.read()[1]                   # answered, never came for
+    book.fetched(said.url, "192.168.1.55")
+    newest, first = runs.read()
+    assert newest["heard"] == "later" and first["fetched"]["by"] == "192.168.1.55"
+    assert (tmp_path / runs.FILE).stat().st_mode & 0o777 == 0o600

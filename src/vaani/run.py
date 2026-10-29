@@ -32,8 +32,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from aioesphomeapi import VoiceAssistantEventType as Ev
 
@@ -58,6 +59,11 @@ class Said:
     answer: str = ""
     url: str = ""
     error: str = ""
+    #: whose question it was taken to be, and why (set by the answer step)
+    person: str = ""
+    how: str = ""
+    #: seconds each step took: hear, agent, speak
+    took: dict[str, float] = field(default_factory=dict)
 
 
 class Run:
@@ -65,7 +71,7 @@ class Run:
 
     def __init__(self, *, send: Callable[[Ev, dict | None], None],
                  hear: Callable[[bytes], Awaitable[str]],
-                 answer: Callable[[str, bytes], Awaitable[str]],
+                 answer: Callable[[str, bytes, Said], Awaitable[str]],
                  speak: Callable[[str], Awaitable[str]],
                  listen: EndOfSpeech | None = None, stall: float = STALL) -> None:
         self.send, self.hear, self.answer, self.speak = send, hear, answer, speak
@@ -91,21 +97,26 @@ class Run:
             if ended in ("silence", "stopped"):
                 return self._fail("stt-no-text-recognized", "nothing was said")
             wav = as_wav(bytes(self.listen.heard))
+            began = time.monotonic()
             try:
                 heard = await self.hear(wav)
             except Exception as exc:              # noqa: BLE001 -- said, never lost
                 return await self._say_failed("stt-provider-unavailable", exc,
                                               COULDNT_HEAR)
             self.said.heard = heard
+            self._took("hear", began)
             if not heard:
                 self.send(Ev.VOICE_ASSISTANT_STT_END, {"text": ""})
                 return await self._say_failed("stt-no-text-recognized", None, COULDNT_HEAR)
             self.send(Ev.VOICE_ASSISTANT_STT_END, {"text": heard})
             self.send(Ev.VOICE_ASSISTANT_INTENT_START, {})
+            began = time.monotonic()
             try:
-                said = await self.answer(heard, wav)
+                said = await self.answer(heard, wav, self.said)
             except Exception as exc:              # noqa: BLE001
+                self._took("agent", began)
                 return await self._say_failed("intent-failed", exc, COULDNT_REACH)
+            self._took("agent", began)
             self.said.answer = said
             self.send(Ev.VOICE_ASSISTANT_INTENT_END, {"continue_conversation": "0"})
             await self._speak(said)
@@ -128,9 +139,14 @@ class Run:
     async def _speak(self, text: str) -> None:
         words = aloud(text) or "Done."
         self.send(Ev.VOICE_ASSISTANT_TTS_START, {"text": words})
+        began = time.monotonic()
         url = await self.speak(words)
+        self._took("speak", began)
         self.said.url = url
         self.send(Ev.VOICE_ASSISTANT_TTS_END, {"url": url})
+
+    def _took(self, step: str, began: float) -> None:
+        self.said.took[step] = round(time.monotonic() - began, 1)
 
     def _fail(self, code: str, message: str) -> Said:
         self.said.error = f"{code}: {message}"

@@ -161,7 +161,18 @@ The whole answer is also in Dvara's record of what each message did
 | The ring finishes but no sound | The puck can't reach port 8799 | no `answer fetched by …` line in the log: the `ufw` line in Step 5; `[serve] address` if this computer has several |
 | `… can be read by others; chmod 600 …` | The key file is open to others | run the `chmod` it shows |
 
+## Watching it
+
+`uv run vaani runs` lists the last questions, one line each: what it
+heard, whose question it took it to be, the answer, how long each step
+took, and whether the puck fetched the answer. With Sarathi, the same
+is on **Settings → Vaani**, along with each puck's state, and it checks
+again every few seconds.
+
 ## Step 7 · Everyone in the house, each their own
+
+(With Sarathi, all of this is on **Settings → Vaani**: tick the people,
+then press **Learn their voice**. The commands below do the same.)
 
 So far the puck answers as one person. To have it tell people apart,
 so each gets their own calendar and mail:
@@ -169,7 +180,10 @@ so each gets their own calendar and mail:
 1. **Make a "house" person in Dvara** with only the house's accounts
    (Sarathi's Settings → People → Add, Accounts: *None* or a shared
    one). The puck answers as them when it isn't sure who's asking.
-2. **List the people on the puck**, in `~/.config/vaani/vaani.toml`:
+2. **List the people on the puck**: `uv run vaani puck kitchen --people
+   owner,asha --person house`. That's the same as editing
+   `~/.config/vaani/vaani.toml` like this (the old file is kept as
+   `vaani.toml.bak`), and it applies from the next question:
 
    ```toml
    [[puck]]

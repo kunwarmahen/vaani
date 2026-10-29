@@ -45,7 +45,7 @@ from aioesphomeapi import (
 )
 
 from vaani.config import Puck
-from vaani.run import Run
+from vaani.run import Run, Said
 
 log = logging.getLogger("vaani")
 
@@ -57,9 +57,10 @@ class Satellite:
     def __init__(self, puck: Puck, *, hear: Callable[[bytes], Awaitable[str]],
                  answer: Callable[[Puck, str, bytes], Awaitable[str]],
                  speak: Callable[[str], Awaitable[str]],
-                 told: Callable[[str, str], None] = lambda _name, _problem: None) -> None:
+                 told: Callable[[str, str], None] = lambda _name, _problem: None,
+                 done: Callable[[str, str, Said], None] = lambda _p, _w, _s: None) -> None:
         self.puck = puck
-        self.told = told
+        self.told, self.done = told, done
         self.hear, self.answer, self.speak = hear, answer, speak
         self.client: APIClient | None = None
         self.run: Run | None = None
@@ -136,13 +137,14 @@ class Satellite:
         if self.run is not None:
             self.run.stop()
         run = Run(send=self._send, hear=self.hear,
-                  answer=lambda text, wav: self.answer(self.puck, text, wav),
+                  answer=lambda text, wav, said: self.answer(self.puck, text, wav, said),
                   speak=self.speak)
         self.run = run
         log.info("%s: woken%s", self.puck.name, f" by {wake_word!r}" if wake_word else "")
 
         async def go() -> None:
             said = await run.go()
+            self.done(self.puck.name, wake_word or "", said)
             log.info("%s: %s -- heard %r, answered %r%s", self.puck.name, said.ended,
                      said.heard, said.answer[:80], f" ({said.error})" if said.error else "")
             if self.run is run:

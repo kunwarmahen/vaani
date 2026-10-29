@@ -13,10 +13,11 @@ import json
 import logging
 import os
 
-from vaani import asking, dvara, flac, hearing, speaking, status
+from vaani import asking, dvara, flac, hearing, runs, speaking, status
 from vaani import config as settings
 from vaani.clips import Clips, address_towards
 from vaani.config import Config, ConfigError, Puck
+from vaani.run import Said
 from vaani.satellite import Satellite
 from vaani.voices import Prints
 
@@ -33,7 +34,9 @@ async def serve(conf: Config) -> int:
     for puck in conf.pucks:
         puck.key()                     # a key that can't be read is said now, not at 3am
     address = conf.address or address_towards(conf.pucks[0].host)
-    clips = Clips(host=conf.host, port=conf.port, address=address).start()
+    book = runs.Book()
+    clips = Clips(host=conf.host, port=conf.port, address=address,
+                  fetched=book.fetched).start()
     log.info("answers served at http://%s:%s/clip/", address, clips.port)
     # each puck held or not, and why: what `vaani status` and Sarathi's
     # Check say, so "running" is never mistaken for "listening"
@@ -57,12 +60,25 @@ async def serve(conf: Config) -> int:
 
     prints = Prints(settings.path().parent / "voices")
 
-    async def answer(puck: Puck, text: str, wav: bytes) -> str:
-        asked = await asyncio.to_thread(asking.whose, conf, puck, text, wav, prints)
+    def fresh(puck: Puck) -> tuple[Config, Puck]:
+        """vaani.toml as it is now, so who a puck answers (person, agent,
+        people, from the page or `vaani puck`) holds from the next question.
+        Where and how it connects stay as they started."""
+        try:
+            now = settings.load()
+            return now, now.puck(puck.name)
+        except ConfigError as exc:
+            log.warning("vaani.toml can't be read now (%s); going on as before", exc)
+            return conf, puck
+
+    async def answer(puck: Puck, text: str, wav: bytes, said: Said) -> str:
+        now, puck = fresh(puck)
+        asked = await asyncio.to_thread(asking.whose, now, puck, text, wav, prints)
+        said.person, said.how = asked.person, asked.how
         if asked.sample:
             return asked.sample
         got = await asyncio.to_thread(dvara.ask, asked.text, person=asked.person,
-                                      agent=puck.agent or conf.agent, puck=puck.name,
+                                      agent=puck.agent or now.agent, puck=puck.name,
                                       url=conf.dvara_url, token=token)
         said = str(got.get("text") or "")
         return f"{asked.before} {said}".strip()
@@ -72,7 +88,12 @@ async def serve(conf: Config) -> int:
                                       port=conf.speak_port, voice=conf.voice)
         return clips.add(await asyncio.to_thread(flac.from_wav, wav))
 
-    satellites = [Satellite(p, hear=hear, answer=answer, speak=speak, told=told)
+    def done(puck: str, woke: str, said: Said) -> None:
+        book.add({"puck": puck, "woke_by": woke, "ended": said.ended, "heard": said.heard,
+                  "person": said.person, "how": said.how, "answer": said.answer,
+                  "url": said.url, "error": said.error, "took": said.took})
+
+    satellites = [Satellite(p, hear=hear, answer=answer, speak=speak, told=told, done=done)
                   for p in conf.pucks]
     try:
         await asyncio.gather(*(s.keep() for s in satellites))

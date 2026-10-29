@@ -18,6 +18,7 @@ import secrets
 import socket
 import threading
 import time
+from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 log = logging.getLogger("vaani")
@@ -27,7 +28,8 @@ KEEP = 300.0
 
 
 class Clips:
-    def __init__(self, *, host: str, port: int, address: str) -> None:
+    def __init__(self, *, host: str, port: int, address: str,
+                 fetched: Callable[[str, str], None] = lambda _url, _by: None) -> None:
         self.address, self.port = address, port
         self._kept: dict[str, tuple[float, bytes]] = {}
         self._lock = threading.Lock()
@@ -44,6 +46,7 @@ class Clips:
                     return
                 log.info("answer fetched by %s (%d KB)", self.client_address[0],
                          len(body) // 1024)
+                fetched(clips.url(name), self.client_address[0])
                 self.send_response(200)
                 self.send_header("Content-Type", "audio/flac")
                 self.send_header("Content-Length", str(len(body)))
@@ -73,6 +76,9 @@ class Clips:
         with self._lock:
             self._kept = {k: v for k, v in self._kept.items() if now - v[0] < KEEP}
             self._kept[name] = (now, flac)
+        return self.url(name)
+
+    def url(self, name: str) -> str:
         return f"http://{self.address}:{self.port}/clip/{name}.flac"
 
     def get(self, name: str) -> bytes | None:

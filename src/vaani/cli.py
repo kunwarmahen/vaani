@@ -10,11 +10,14 @@
     vaani ask "words" [--puck P]    what that puck's person's agent answers, as text
     vaani serve                     every puck, listening, until stopped
     vaani status [--json]           is it here, is it listening, which pucks
+    vaani puck NAME [--person P] [--agent A] [--people a,b]
+                                    change who a puck answers (read at its next question)
+    vaani runs [--json]             the last questions: heard, whose, how long, fetched
     vaani voices fetch              the speaker model (once), to tell voices apart
     vaani voices enroll NAME --at-puck kitchen   their next 3 sentences there
                                     make their voice print (or: FILE.wav ...)
     vaani voices who FILE.wav --puck kitchen     whose voice that is
-    vaani voices list | forget NAME
+    vaani voices list | forget NAME | stop   (stop: an enrolling left undone)
     vaani keeps --json              what a backup takes (Sarathi asks)
 
 Each step of a run can be tried on its own, without a puck speaking:
@@ -82,12 +85,22 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("status", help="is it here, is it listening, which pucks")
     p.add_argument("--json", action="store_true", dest="json_out")
+    p = sub.add_parser("puck", help="change who a puck answers as, and which people it "
+                       "tells apart")
+    p.add_argument("name")
+    p.add_argument("--person", default=None, help="who, when it isn't sure")
+    p.add_argument("--agent", default=None)
+    p.add_argument("--people", default=None, help="names from Dvara, comma between; "
+                   "\"\" for none")
+    p = sub.add_parser("runs", help="the last questions: heard, whose, how long, fetched")
+    p.add_argument("--json", action="store_true", dest="json_out")
+    p.add_argument("--limit", type=int, default=20)
     p = sub.add_parser("keeps", help="what a backup should take")
     p.add_argument("--json", action="store_true", dest="json_out")
 
     p = sub.add_parser("voices", help="telling voices apart: fetch, enroll, who, list, "
                        "forget")
-    p.add_argument("what", choices=("fetch", "enroll", "who", "list", "forget"))
+    p.add_argument("what", choices=("fetch", "enroll", "who", "list", "forget", "stop"))
     p.add_argument("name", nargs="?", default="", help="a person (enroll, forget), or a "
                    "WAV file (who)")
     p.add_argument("files", nargs="*", help="WAV files of them talking (enroll)")
@@ -125,6 +138,10 @@ def main(argv: list[str] | None = None) -> int:
                     print(f"  {p['name']:<10} {p['host']:<15} as {p['person']}, "
                           f"key {p['key']}{held}")
             return 0
+        if args.command == "runs":
+            return _runs(args)
+        if args.command == "puck":
+            return _puck(args)
         if args.command == "voices":
             return _voices(args)
         conf = settings.load()
@@ -168,6 +185,13 @@ def _voices(args) -> int:
     if args.what == "fetch":
         print(f"the speaker model is at {voices.fetch()}")
         return 0
+    if args.what == "stop":
+        from vaani import asking
+        note = asking.enrolling()
+        asking.enrolling_file().unlink(missing_ok=True)
+        print(f"stopped taking {note['person']}'s samples at the {note['puck']} puck"
+              if note else "nobody was being enrolled")
+        return 0
     if args.what == "list":
         known = prints.known()
         for person, kept in known.items():
@@ -207,6 +231,50 @@ def _voices(args) -> int:
         raise ConfigError("enroll from what? --at-puck PUCK, or WAV files of them talking")
     count = prints.enroll(args.name, [Path(f).read_bytes() for f in args.files])
     print(f"{args.name}'s voice print made from {count} sample(s)")
+    return 0
+
+
+def _puck(args) -> int:
+    changes: dict = {k: getattr(args, k) for k in ("person", "agent") if getattr(args, k)
+                     is not None}
+    if args.people is not None:
+        changes["people"] = [p.strip() for p in args.people.split(",") if p.strip()]
+    if not changes:
+        raise ConfigError("change what? --person, --agent or --people")
+    where = settings.path()
+    before = where.read_text()
+    after = settings.with_puck(before, args.name, changes)
+    where.with_name(where.name + ".bak").write_text(before)
+    where.write_text(after)
+    print(f"the {args.name} puck: " + "; ".join(
+        f"{k} {', '.join(v) or 'nobody' if isinstance(v, list) else v}"
+        for k, v in changes.items()) + " (from its next question)")
+    return 0
+
+
+def _runs(args) -> int:
+    from vaani import asking, runs
+    got = runs.read(max(1, args.limit))
+    if args.json_out:
+        prints = voices.Prints(settings.path().parent / "voices")
+        try:
+            pucks = [{"name": p.name, "person": p.person, "people": list(p.people)}
+                     for p in settings.load().pucks]
+        except ConfigError:
+            pucks = []
+        print(json.dumps({"format": runs.FORMAT, "runs": got, "pucks": pucks,
+                          "voices": [{"person": person, "samples": kept.get("samples")}
+                                     for person, kept in prints.known().items()],
+                          "enrolling": asking.enrolling()}, indent=2))
+        return 0
+    if not got:
+        print("no questions yet")
+    for run in got:
+        took = ", ".join(f"{k} {v}s" for k, v in (run.get("took") or {}).items())
+        fetched = "fetched" if run.get("fetched") else "NOT fetched" if run.get("url") else ""
+        print(f"{run.get('puck')}: heard {run.get('heard')!r} as {run.get('person') or '-'}"
+              f" -> {(run.get('answer') or run.get('error') or '')[:60]!r}"
+              f" [{took}] {fetched}")
     return 0
 
 

@@ -216,3 +216,18 @@ def test_an_answer_is_flac_at_the_puck_s_own_rate():
     assert total == 5000 * 48000 // 22050
     frames = got.count(b"\xff\xf8\x7a\x08")
     assert frames == -(-total // flac.BLOCK)
+
+
+def test_a_puck_is_changed_in_place_and_a_bad_change_writes_nothing():
+    from vaani.config import with_puck
+    text = GOOD.format(key="k") + ('\n[[puck]]\nname = "study"  # upstairs\nhost = "h"\n'
+                                   'key_file = "k"\nperson = "mahen"\n')
+    after = with_puck(text, "study", {"people": ["mahen", "asha"], "person": "house"})
+    study = parse(after).puck("study")
+    assert study.people == ("mahen", "asha") and study.person == "house"
+    assert parse(after).pucks[0] == parse(text).pucks[0]          # the other untouched
+    assert "# upstairs" in after                                    # comments kept
+    with pytest.raises(ConfigError, match="people is a list of names"):
+        with_puck(text, "study", {"people": ["../x"]})
+    with pytest.raises(ConfigError, match="no puck called attic"):
+        with_puck(text, "attic", {"person": "x"})
