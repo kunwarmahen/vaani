@@ -97,6 +97,12 @@ Assistant holds it, Vaani is ignored. Then:
 vaani serve
 ```
 
+**The wake word** is the puck's own (Okay Nabu, Hey Jarvis, Hey
+Mycroft); `wake_word = "hey_jarvis"` on a puck, or `vaani puck kitchen
+--wake-word hey_jarvis`, switches it, within a minute and again on every
+reconnect. Only the client holding the puck's voice is told its wake
+words, so Vaani reads and sets them on its own connection.
+
 **Talking back, starting over.** An answer that ends with a question
 keeps the puck listening, no wake word: the reply is the same person's,
 in the same conversation. *"New conversation"* or *"start over"* starts
@@ -169,6 +175,7 @@ person = "mahen"                             # from Dvara's actors file; unsure:
 agent = "minder"                             # an agent every one of its people may use
 # people = ["mahen", "asha"]                 # voices it tells apart
 fresh_after = 30              # minutes quiet, then a new conversation (0: never)
+# wake_word = "hey_jarvis"    # one the puck has (okay_nabu, hey_jarvis, hey_mycroft)
 
 # [voices]
 # threshold = 0.6                            # this close to a print to be that person
@@ -221,7 +228,7 @@ src/vaani/
 ## Tests
 
 ```
-uv run pytest -q        # 35 passed
+uv run pytest -q        # 36 passed
 ```
 
 ## License

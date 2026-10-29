@@ -11,6 +11,7 @@
     vaani serve                     every puck, listening, until stopped
     vaani status [--json]           is it here, is it listening, which pucks
     vaani puck NAME [--person P] [--agent A] [--people a,b] [--fresh-after MIN]
+                    [--wake-word hey_jarvis]
                                     change who a puck answers (read at its next question)
     vaani runs [--json]             the last questions: heard, whose, how long, fetched
     vaani page                      the page's address, with its key
@@ -96,6 +97,9 @@ def build_parser() -> argparse.ArgumentParser:
                    "\"\" for none")
     p.add_argument("--fresh-after", dest="fresh_after", type=int, default=None,
                    metavar="MIN", help="minutes quiet, then a new conversation (0: never)")
+    p.add_argument("--wake-word", dest="wake_word", default=None,
+                   help="one the puck offers (okay_nabu, hey_jarvis, hey_mycroft); applied "
+                   "when Vaani next connects to it")
     p = sub.add_parser("runs", help="the last questions: heard, whose, how long, fetched")
     p.add_argument("--json", action="store_true", dest="json_out")
     p.add_argument("--limit", type=int, default=20)
@@ -247,12 +251,14 @@ def _voices(args) -> int:
 
 
 def _puck(args) -> int:
-    changes: dict = {k: getattr(args, k) for k in ("person", "agent", "fresh_after")
+    changes: dict = {k: getattr(args, k) for k in ("person", "agent", "fresh_after",
+                                                    "wake_word")
                      if getattr(args, k) is not None}
     if args.people is not None:
         changes["people"] = [p.strip() for p in args.people.split(",") if p.strip()]
     if not changes:
-        raise ConfigError("change what? --person, --agent, --people or --fresh-after")
+        raise ConfigError("change what? --person, --agent, --people, --fresh-after or "
+                          "--wake-word")
     where = settings.path()
     before = where.read_text()
     after = settings.with_puck(before, args.name, changes)
@@ -260,7 +266,7 @@ def _puck(args) -> int:
     where.write_text(after)
     print(f"the {args.name} puck: " + "; ".join(
         f"{k} {', '.join(v) or 'nobody' if isinstance(v, list) else v}"
-        for k, v in changes.items()) + " (from its next question)")
+        for k, v in changes.items()) + " (from its next question; a wake word within a minute)")
     return 0
 
 
@@ -271,7 +277,8 @@ def _runs(args) -> int:
         prints = voices.Prints(settings.path().parent / "voices")
         try:
             pucks = [{"name": p.name, "person": p.person, "agent": p.agent,
-                      "people": list(p.people), "fresh_after": p.fresh_after}
+                      "people": list(p.people), "fresh_after": p.fresh_after,
+                      "wake_word": p.wake_word}
                      for p in settings.load().pucks]
         except ConfigError:
             pucks = []

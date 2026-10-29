@@ -242,3 +242,39 @@ def test_a_quiet_spell_is_minutes_and_set_in_place():
     for wrong in ('"30"', "-1", "true", "20000"):
         with pytest.raises(ConfigError, match="fresh_after is minutes"):
             parse(text + f"fresh_after = {wrong}\n")
+
+
+def test_the_wake_word_is_switched_only_to_one_the_puck_has(caplog):
+    import asyncio
+
+    from aioesphomeapi.model import VoiceAssistantWakeWord as Word
+
+    from vaani import satellite
+    from vaani.config import Puck
+
+    class Puckish:
+        def __init__(self):
+            self.on, self.set = ["okay_nabu", "hey_jarvis"], []
+
+        async def get_voice_assistant_configuration(self, _timeout):
+            class Got:
+                available_wake_words = [Word("okay_nabu", "Okay Nabu", ["en"]),
+                                        Word("hey_jarvis", "Hey Jarvis", ["en"])]
+                active_wake_words = list(self.on)
+            return Got()
+
+        async def set_voice_assistant_configuration(self, words):
+            self.set.append(words)
+            self.on = words
+
+    sat = satellite.Satellite(Puck("kitchen", "h", "k", "owner"), hear=None, answer=None,
+                              speak=None)
+    sat.client = Puckish()
+    asyncio.run(sat.wake("Hey Jarvis"))                     # by its name, or its id
+    assert sat.client.set == [["hey_jarvis"]] and sat.wakes["on"] == ["Hey Jarvis"]
+    asyncio.run(sat.wake("hey_jarvis"))                     # already on: nothing sent
+    assert sat.client.set == [["hey_jarvis"]]
+    asyncio.run(sat.wake("alexa"))                          # not one it has: left alone
+    assert sat.client.set == [["hey_jarvis"]] and "no wake word 'alexa'" in caplog.text
+    with pytest.raises(ConfigError, match="wake_word is one the puck offers"):
+        parse(GOOD.format(key="k") + 'wake_word = "x\\"; rm"\n')

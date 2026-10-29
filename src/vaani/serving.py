@@ -60,7 +60,10 @@ async def serve(conf: Config) -> int:
         (status.state() / "serve.json").write_text(json.dumps({
             "pid": os.getpid(), "answers_at": f"http://{address}:{clips.port}/clip/",
             "page_port": page.port if page else 0,
-            "pucks": [p.name for p in conf.pucks], "problems": held}))
+            "pucks": [p.name for p in conf.pucks], "problems": held,
+            "wake_words": {s.puck.name: s.wakes for s in satellites if s.wakes}}))
+
+    satellites: list[Satellite] = []
 
     def told(name: str, problem: str) -> None:
         if held.get(name) != problem:
@@ -125,11 +128,19 @@ async def serve(conf: Config) -> int:
             book.add(record(puck, woke, said, False))
 
     async def freshen() -> None:
-        """Each person's conversation at a puck starts over by itself after
-        its ``fresh_after`` minutes of quiet: done here, in the quiet, so
-        the next question doesn't wait for it."""
+        """Once a minute: a wake word changed in vaani.toml is given to its
+        puck (and kept for when it next connects), and each person's
+        conversation at a puck starts over by itself after its
+        ``fresh_after`` minutes of quiet -- done here, in the quiet, so the
+        next question doesn't wait for it."""
         while True:
             await asyncio.sleep(FRESHEN_EVERY)
+            for sat in satellites:
+                _, current = fresh(sat.puck)
+                if current.wake_word and current.wake_word != sat.puck.wake_word:
+                    sat.puck = current
+                    if sat.connected.is_set():
+                        await sat.wake(current.wake_word)
             for puck in conf.pucks:
                 now, current = fresh(puck)
                 if not current.fresh_after:
@@ -151,8 +162,8 @@ async def serve(conf: Config) -> int:
                         log.info("%s: %s's conversation started over after %d min quiet",
                                  current.name, person, current.fresh_after)
 
-    satellites = [Satellite(p, hear=hear, answer=answer, speak=speak, told=told, done=done,
-                            begun=begun) for p in conf.pucks]
+    satellites += [Satellite(p, hear=hear, answer=answer, speak=speak, told=told, done=done,
+                             begun=begun, noted=write) for p in conf.pucks]
     try:
         await asyncio.gather(freshen(), *(s.keep() for s in satellites))
     finally:

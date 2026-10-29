@@ -12,6 +12,13 @@ While Home Assistant still holds it, Vaani connects and is ignored; the
 puck is taken out of Home Assistant first (its ESPHome integration), and
 then it is Vaani's.
 
+THE WAKE WORD IS THE PUCK'S, CHOSEN HERE. The puck's firmware carries a
+few (Okay Nabu, Hey Jarvis, Hey Mycroft) and listens for one. Which one
+is set by the client that holds its voice -- Home Assistant did -- and
+only that client is even told which it has. So once subscribed, Vaani
+reads them, and switches to the puck's ``wake_word`` when that is set
+and isn't the one listening; again within a minute of it being changed.
+
 A PUCK LET GO HAS NO KEY. Deleting it from Home Assistant clears its key,
 so it answers unencrypted and the old key is refused. Vaani then does
 what Home Assistant does when it adopts one: makes a new key, saves it
@@ -64,8 +71,12 @@ class Satellite:
                  speak: Callable[[str], Awaitable[str]],
                  told: Callable[[str, str], None] = lambda _name, _problem: None,
                  done: Callable[[str, str, Said], None] = lambda _p, _w, _s: None,
-                 begun: Callable[[str, str, Said], None] = lambda _p, _w, _s: None) -> None:
+                 begun: Callable[[str, str, Said], None] = lambda _p, _w, _s: None,
+                 noted: Callable[[], None] = lambda: None) -> None:
         self.puck = puck
+        self.noted = noted
+        #: {"offers": [names], "on": [names]}: the puck's wake words, as it says
+        self.wakes: dict[str, list[str]] = {}
         self.told, self.done, self.begun = told, done, begun
         self.hear, self.answer, self.speak = hear, answer, speak
         self.client: APIClient | None = None
@@ -137,9 +148,38 @@ class Satellite:
                                          handle_audio=self._audio)
         self.client = client
         self.connected.set()
+        await self.wake(self.puck.wake_word)
         self.told(self.puck.name, "")
         log.info("%s: listening (%s, %s %s), answering as %s", self.puck.name,
                  info.name, info.project_name, info.project_version, self.puck.person)
+
+    async def wake(self, wanted: str) -> None:
+        """The puck's wake words read, and ``wanted`` (an id or a name it
+        offers) made the one it listens for. A word it doesn't have is
+        said in the log, and the puck is left as it is."""
+        client = self.client
+        if client is None:
+            return
+        try:
+            got = await client.get_voice_assistant_configuration(10)
+            offers = {w.id: w.wake_word for w in got.available_wake_words}
+            on = list(got.active_wake_words)
+            if wanted:
+                pick = next((i for i, n in offers.items()
+                             if wanted.lower() in (i.lower(), n.lower())), None)
+                if pick is None:
+                    log.warning("%s: it has no wake word %r (it has: %s)", self.puck.name,
+                                wanted, ", ".join(offers.values()) or "none it says")
+                elif on != [pick]:
+                    await client.set_voice_assistant_configuration([pick])
+                    log.info("%s: wake word now %s", self.puck.name, offers[pick])
+                    on = [pick]
+        except (APIConnectionError, OSError, TimeoutError) as exc:
+            log.warning("%s: couldn't read its wake words: %s", self.puck.name, exc)
+            return
+        self.wakes = {"offers": list(offers.values()),
+                      "on": [offers.get(i, i) for i in on]}
+        self.noted()
 
     async def _start(self, conversation_id: str, flags: int,
                      audio: VoiceAssistantAudioSettings, wake_word: str | None) -> int | None:

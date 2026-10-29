@@ -146,7 +146,8 @@ uv run vaani serve
 23:40:03 kitchen: listening (home-assistant-voice-091194, Nabu Casa.Home Assistant Voice PE 26.9.0), answering as owner
 ```
 
-Say *"Okay Nabu"*, wait for the ring, and ask *"what's on my calendar
+Say the wake word (*"Okay Nabu"* unless you've changed it, see below),
+wait for the ring, and ask *"what's on my calendar
 tomorrow?"*. The ring spins while your agent works (a local model can
 take half a minute), then the puck says the answer. The log says what
 it heard and what it answered:
@@ -158,6 +159,15 @@ it heard and what it answered:
 
 The whole answer is also in Dvara's record of what each message did
 (`dvara runs`), marked as come by *vaani*.
+
+**The wake word.** The puck knows three: *Okay Nabu*, *Hey Jarvis* and
+*Hey Mycroft*, and listens for one. Choose it with `uv run vaani puck
+kitchen --wake-word hey_jarvis` (or with Sarathi in **Settings → Vaani**):
+the puck switches within a minute, and Vaani sets it again whenever it
+reconnects. Vaani's page says which one it's listening for. Something
+close to the wake word (*"OK Jarvis"*) can wake it on a *Very sensitive*
+puck; the log and the page then say the wake word the puck thought it
+heard.
 
 **When it asks you something back**, you can just answer. If the
 answer ends with a question (*"…it's at 79. Want it set to a different

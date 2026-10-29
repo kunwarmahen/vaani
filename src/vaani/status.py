@@ -101,6 +101,9 @@ def report() -> dict[str, Any]:
                "key": "readable" if key.is_file() and os.access(key, os.R_OK) else "missing"}
         if running:                    # held by the serve, or why not
             row["listening"] = problems.get(puck.name) == ""
+            wakes = (running.get("wake_words") or {}).get(puck.name)
+            if wakes:                  # the puck's own: what it offers, what's on
+                row["wake_words"] = wakes
             if problems.get(puck.name):
                 row["problem"] = problems[puck.name]
         out["pucks"].append(row)

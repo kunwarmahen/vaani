@@ -68,6 +68,15 @@ who a puck answers (`person`, `agent`, `people`) is a setting, in
 vaani.toml (`vaani puck`; Sarathi's Settings → Vaani), read at each
 question, so a change needs no restart.
 
+**THE WAKE WORD IS SET BY WHOEVER HOLDS THE VOICE.** The firmware has
+three (Okay Nabu, Hey Jarvis, Hey Mycroft) and listens for one at a
+time. Asked by any other client, a puck says it offers none; asked by
+the subscriber, it lists all three and which is on (this one said Okay
+Nabu *and* Hey Jarvis, with one allowed). So the puck's `wake_word` is
+applied on Vaani's own connection, right after subscribing, and again
+within a minute of the setting changing. The puck logs
+`Enabled wake word: Hey Jarvis`.
+
 **RUNNING IS NOT LISTENING.** The serve records, per puck, whether it is
 held and the last reason it isn't; `vaani status` and Sarathi's Check
 say that, so a serve retrying a refused puck every five seconds is red,

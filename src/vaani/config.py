@@ -35,6 +35,7 @@ never a library pulled in here.
     agent = "minder"
     people = ["mahen", "asha"]               # voices it may tell apart (optional)
     fresh_after = 30                         # minutes quiet, then a new conversation (0: never)
+    wake_word = "hey_jarvis"                 # one the puck has; unset: as the puck is
 
     [voices]                                 # telling voices apart (optional)
     threshold = 0.6
@@ -84,7 +85,8 @@ KNOWN = {
     "speak": {"host", "port", "voice"},
     "serve": {"address", "host", "port"},
     "page": {"host", "port"},
-    "puck": {"name", "host", "port", "key_file", "person", "agent", "people", "fresh_after"},
+    "puck": {"name", "host", "port", "key_file", "person", "agent", "people", "fresh_after",
+             "wake_word"},
     "voices": {"threshold", "margin"},
 }
 
@@ -106,6 +108,9 @@ class Puck:
     #: Minutes with no question, after which each person's conversation at
     #: this puck starts over by itself (Dvara's /new); 0: never.
     fresh_after: int = FRESH_AFTER
+    #: The wake word Vaani switches the puck to when it connects (an id
+    #: or a name the puck offers: hey_jarvis, "Hey Jarvis"); "" leaves it.
+    wake_word: str = ""
 
     def key(self) -> str:
         """The key, read when it's needed: a file only you can read."""
@@ -249,7 +254,8 @@ def parse(text: str, where: str = "vaani.toml") -> Config:
                           port=_port(row.get("port", ESPHOME_PORT), where),
                           people=tuple(dict.fromkeys(people)),
                           fresh_after=_minutes(row.get("fresh_after", FRESH_AFTER), where,
-                                               name)))
+                                               name),
+                          wake_word=_wake_word(row.get("wake_word", ""), where, name)))
     base = Config()
     return Config(
         dvara_url=str(d.get("url", base.dvara_url)).rstrip("/"),
@@ -289,7 +295,7 @@ def with_puck(text: str, name: str, changes: dict[str, str | int | list[str]]) -
         raise ConfigError(f"no puck called {name} in vaani.toml")
     start, end = block
     for key, value in changes.items():
-        if key not in ("person", "agent", "people", "fresh_after"):
+        if key not in ("person", "agent", "people", "fresh_after", "wake_word"):
             raise ConfigError(f"a puck's {key} isn't changed here")
         said = (f'{key} = [{", ".join(chr(34) + p + chr(34) for p in value)}]\n'
                 if isinstance(value, list) else f"{key} = {value}\n"
@@ -306,6 +312,13 @@ def with_puck(text: str, name: str, changes: dict[str, str | int | list[str]]) -
     out = "".join(lines)
     parse(out)                         # refused here, never half-written
     return out
+
+
+def _wake_word(value, where: str, puck: str) -> str:
+    if not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9 _-]{0,40}", value):
+        raise ConfigError(f"{where}: puck {puck}: wake_word is one the puck offers, like "
+                          f"hey_jarvis; not {value!r}")
+    return value.strip()
 
 
 def _minutes(value, where: str, puck: str) -> int:
