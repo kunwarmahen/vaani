@@ -1,0 +1,36 @@
+[project]
+name = "vaani"
+version = "0.1.0"
+description = "vaani -- a voice puck that talks to your agents: wake word in, the answer out loud"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+# One dependency: ESPHome's own client, the road the puck already speaks.
+# Whisper and Piper are servers on this computer, reached over the network;
+# Dvara is a program with an HTTP door. None of them is imported.
+dependencies = ["aioesphomeapi>=44"]
+
+[project.scripts]
+vaani = "vaani.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8.3", "ruff>=0.14"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/vaani"]
+
+[tool.ruff]
+line-length = 100          # prose wraps near 79; this is the HARD ceiling
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "UP"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+filterwarnings = ["error"]

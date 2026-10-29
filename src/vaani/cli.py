@@ -1,0 +1,243 @@
+"""``vaani``: the commands.
+
+    vaani init --puck kitchen --host 192.168.1.55 --person mahen --agent minder
+                                    writes ~/.config/vaani/vaani.toml
+    vaani backup                    the puck's whole flash, read twice, over USB
+    vaani key FLASH.bin             its key, from that backup, into a file of yours
+    vaani check [PUCK]              connect to each puck and say what it is
+    vaani hear FILE.wav             what Whisper hears in a file
+    vaani say "words" --out F.wav   what Piper says, into a file (no puck speaks)
+    vaani ask "words" [--puck P]    what that puck's person's agent answers, as text
+    vaani serve                     every puck, listening, until stopped
+
+Each step of a run can be tried on its own, without a puck speaking:
+hear, say and ask are the run's three parts.
+"""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import hashlib
+import logging
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+from vaani import config as settings
+from vaani import dvara, hearing, keys, speaking, version
+from vaani.config import ConfigError, Puck
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="vaani", description="a voice puck that talks "
+                                     "to your agents, through Dvara")
+    parser.add_argument("--version", action=version.Show)
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    p = sub.add_parser("init", help="write vaani.toml with one puck")
+    p.add_argument("--puck", required=True, metavar="NAME", help="what you call it: kitchen")
+    p.add_argument("--host", required=True, help="its address on your network")
+    p.add_argument("--person", required=True, help="who it answers as, from Dvara's people")
+    p.add_argument("--agent", default="", help="which of their agents answers")
+    p.add_argument("--key-file", default="", help="where its key is (default: beside "
+                   "vaani.toml, NAME.key)")
+    p.add_argument("--dvara", default="http://127.0.0.1:8770", help="Dvara's address")
+    p.add_argument("--whisper", default="http://127.0.0.1:11435", help="Whisper's address")
+    p.add_argument("--piper", default="127.0.0.1:10200", help="Piper's (Wyoming) host:port")
+
+    p = sub.add_parser("backup", help="the puck's whole flash, over USB, read twice")
+    p.add_argument("--port", default="/dev/ttyACM0")
+    p.add_argument("--out", default="~/puck-backup", help="a folder only you can read")
+
+    p = sub.add_parser("key", help="a puck's key, from a backup of its flash")
+    p.add_argument("flash", help="the .bin `vaani backup` wrote")
+    p.add_argument("--out", default="", help="the key file (default: the puck's "
+                   "key_file, or ./puck.key)")
+    p.add_argument("--puck", default="", help="whose key_file to write")
+
+    p = sub.add_parser("check", help="connect to each puck and say what it is")
+    p.add_argument("puck", nargs="?", default="")
+
+    p = sub.add_parser("hear", help="what Whisper hears in a WAV file")
+    p.add_argument("file")
+
+    p = sub.add_parser("say", help="what Piper says, into a WAV file")
+    p.add_argument("words")
+    p.add_argument("--out", required=True)
+
+    p = sub.add_parser("ask", help="what a puck's person's agent answers, as text")
+    p.add_argument("words")
+    p.add_argument("--puck", default="")
+
+    p = sub.add_parser("serve", help="every puck, listening, until stopped")
+    p.add_argument("--quiet", action="store_true", help="only problems in the log")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    try:
+        if args.command == "init":
+            return _init(args)
+        if args.command == "backup":
+            return _backup(args)
+        if args.command == "key":
+            return _key(args)
+        conf = settings.load()
+        if args.command == "check":
+            return asyncio.run(_check(conf, args.puck))
+        if args.command == "hear":
+            print(hearing.hear(Path(args.file).read_bytes(), url=conf.hear_url,
+                               model=conf.hear_model, language=conf.language))
+            return 0
+        if args.command == "say":
+            Path(args.out).write_bytes(speaking.speak(
+                speaking.aloud(args.words), host=conf.speak_host, port=conf.speak_port,
+                voice=conf.voice))
+            print(f"wrote {args.out}")
+            return 0
+        if args.command == "ask":
+            puck = conf.puck(args.puck) if args.puck else _only(conf)
+            got = dvara.ask(args.words, person=puck.person, agent=puck.agent or conf.agent,
+                            puck=puck.name, url=conf.dvara_url, token=conf.dvara_token())
+            print(got.get("text", ""))
+            print(f"(read aloud: {speaking.aloud(got.get('text', ''))!r})", file=sys.stderr)
+            return 0 if got.get("ok", True) else 1
+        if args.command == "serve":
+            from vaani.serving import serve
+            logging.basicConfig(level=logging.WARNING if args.quiet else logging.INFO,
+                                format="%(asctime)s %(message)s", datefmt="%H:%M:%S")
+            return asyncio.run(serve(conf))
+    except (ConfigError, hearing.HearingError, speaking.SpeakingError,
+            dvara.DvaraError, keys.NoKey, OSError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    except KeyboardInterrupt:
+        return 130
+    return 2
+
+
+def _only(conf: settings.Config) -> Puck:
+    if len(conf.pucks) != 1:
+        raise ConfigError("which puck? --puck NAME" if conf.pucks
+                          else "no pucks yet: `vaani init`")
+    return conf.pucks[0]
+
+
+def _init(args) -> int:
+    where = settings.path()
+    if where.exists():
+        print(f"error: {where} is there already; change it by hand", file=sys.stderr)
+        return 2
+    host, _, port = args.piper.partition(":")
+    key_file = args.key_file or str(where.parent / f"{args.puck}.key")
+    text = f'''# Vaani: voice pucks that talk to your agents, through Dvara.
+
+[dvara]
+url = "{args.dvara}"
+token_file = "{where.parent / 'dvara.token'}"   # Dvara's token, chmod 600
+
+[hear]
+url = "{args.whisper}"                     # a Whisper with the OpenAI road
+model = "Systran/faster-whisper-small"
+
+[speak]
+host = "{host}"                             # a Piper on the Wyoming road
+port = {int(port or 10200)}
+
+[[puck]]
+name = "{args.puck}"
+host = "{args.host}"
+key_file = "{key_file}"
+person = "{args.person}"
+agent = "{args.agent}"
+'''
+    settings.parse(text, str(where))          # the file is checked before it is written
+    where.parent.mkdir(parents=True, exist_ok=True)
+    where.write_text(text)
+    print(f"wrote {where}\nnext: its key into {key_file} (`vaani key FLASH.bin`), "
+          f"Dvara's token into {where.parent / 'dvara.token'}, then `vaani check`")
+    return 0
+
+
+def _esptool() -> list[str]:
+    if shutil.which("esptool"):
+        return ["esptool"]
+    if shutil.which("uvx"):
+        return ["uvx", "--from", "esptool", "esptool"]
+    raise ConfigError("esptool is needed: `pipx install esptool`, or install uv")
+
+
+def _backup(args) -> int:
+    out = Path(args.out).expanduser()
+    out.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if not os.access(args.port, os.R_OK | os.W_OK):
+        raise ConfigError(f"{args.port} can't be opened: sudo setfacl -m u:$USER:rw "
+                          f"{args.port}  (or join the dialout group)")
+    reads = []
+    for n in (1, 2):
+        made = out / f"puck-flash-read{n}.bin"
+        print(f"reading the whole flash ({n} of 2): a minute or two; the puck restarts")
+        done = subprocess.run([*_esptool(), "-p", args.port, "-b", "921600", "read-flash",
+                               "0", "ALL", str(made)], capture_output=True, text=True)
+        if done.returncode != 0:
+            raise ConfigError(f"esptool: {(done.stderr or done.stdout).strip()[-300:]}")
+        reads.append(made)
+    a, b = (hashlib.sha256(p.read_bytes()).hexdigest() for p in reads)
+    if a != b:
+        raise ConfigError("the two reads differ: a loose cable? Nothing is kept; try again")
+    kept = out / "puck-flash.bin"
+    reads[0].replace(kept)
+    reads[1].unlink()
+    kept.chmod(0o600)
+    print(f"kept {kept} (sha256 {a}); both reads matched.\nIt holds the puck's Wi-Fi "
+          f"password: keep it private. To put it back: esptool -p {args.port} -b 921600 "
+          f"write-flash 0 {kept}")
+    return 0
+
+
+def _key(args) -> int:
+    found = keys.key_from_flash(Path(args.flash).expanduser().read_bytes())
+    if args.out:
+        target = Path(args.out).expanduser()
+    else:
+        try:
+            conf = settings.load()
+            target = Path((conf.puck(args.puck) if args.puck else _only(conf)).key_file)
+        except ConfigError:
+            target = Path("puck.key")
+        target = target.expanduser()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.touch(mode=0o600, exist_ok=True)
+    target.chmod(0o600)
+    target.write_text(found + "\n")
+    print(f"wrote its key into {target} (only you can read it); `vaani check` tries it")
+    return 0
+
+
+async def _check(conf: settings.Config, name: str) -> int:
+    from aioesphomeapi import APIClient
+
+    pucks = [conf.puck(name)] if name else list(conf.pucks)
+    if not pucks:
+        raise ConfigError("no pucks yet: `vaani init`")
+    bad = 0
+    for puck in pucks:
+        client = APIClient(puck.host, puck.port, None, noise_psk=puck.key(),
+                           client_info="vaani")
+        try:
+            await asyncio.wait_for(client.connect(login=True), 15)
+            info = await client.device_info()
+            print(f"{puck.name}: {info.name} at {puck.host}, ESPHome {info.esphome_version}, "
+                  f"{info.project_name} {info.project_version}; answers as {puck.person}"
+                  f"{' with ' + (puck.agent or conf.agent) if (puck.agent or conf.agent) else ''}")
+        except Exception as exc:                  # noqa: BLE001 -- each puck said in turn
+            bad += 1
+            why = "the key is wrong" if "invalid" in str(exc).lower() else str(exc)
+            print(f"{puck.name}: can't connect at {puck.host}: {why}")
+        finally:
+            await client.disconnect()
+    return 1 if bad else 0

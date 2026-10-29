@@ -1,0 +1,158 @@
+# Vaani, step by step
+
+This takes a Home Assistant Voice puck and makes it talk to your own
+agents. You say the wake word, ask your question, and the answer comes
+back out of the puck, worked out by the agent that knows your mail,
+calendar and accounts. It all happens on your computer.
+
+You need:
+
+* **The puck** (Home Assistant Voice Preview Edition), set up on your
+  Wi-Fi once, the usual way. It may still be in Home Assistant for now.
+* **Dvara** running, with you in its people list (Sarathi sets this up).
+* **Whisper** and **Piper**, the programs that turn speech into words and
+  words into speech. If your Home Assistant does voice on this computer,
+  you probably have both already.
+* A USB-C cable, once, for the backup.
+
+## Step 1 · Install
+
+```
+cd ~/Documents/ai/agent
+git clone https://github.com/kunwarmahen/vaani
+cd vaani && uv sync
+```
+
+Check Whisper and Piper are there:
+
+```
+curl -s http://127.0.0.1:11435/v1/models | head -c 80     # Whisper
+nc -z 127.0.0.1 10200 && echo piper is there              # Piper
+```
+
+No Whisper? `podman run -d --name whisper -p 11435:8000
+docker.io/fedirz/faster-whisper-server:latest-cpu` (`-cuda` with an
+NVIDIA card). No Piper? `podman run -d --name piper -p 10200:10200
+docker.io/rhasspy/wyoming-piper --voice en_US-lessac-medium`.
+
+## Step 2 · Back up the puck
+
+Before anything else, keep a copy of everything on the puck. It's how
+you'd put it back exactly as it was, and it's also where its key comes
+from.
+
+Plug the puck into this computer with USB-C. Let yourself open it
+(once; it lasts until you unplug):
+
+```
+sudo setfacl -m u:$USER:rw /dev/ttyACM0
+```
+
+Then:
+
+```
+uv run vaani backup
+```
+
+It reads the puck twice (a minute or two each; the puck restarts) and
+keeps the copy only if both reads match:
+
+```
+kept /home/you/puck-backup/puck-flash.bin (sha256 9e8f861f…); both reads matched.
+It holds the puck's Wi-Fi password: keep it private.
+```
+
+## Step 3 · Tell Vaani about the puck
+
+Find its address: your router's list, or `avahi-browse -rt
+_esphomelib._tcp`. Find your name in Dvara: it's the `[actor.NAME]` in
+`~/dvara/actors.toml` (often `owner`).
+
+```
+uv run vaani init --puck kitchen --host 192.168.1.55 --person owner --agent minder
+uv run vaani key ~/puck-backup/puck-flash.bin
+```
+
+Give it Dvara's token (Sarathi keeps it):
+
+```
+grep '^DVARA_TOKEN=' ~/.config/sarathi/secrets.env | cut -d= -f2- > ~/.config/vaani/dvara.token
+chmod 600 ~/.config/vaani/dvara.token
+```
+
+Now check:
+
+```
+uv run vaani check
+```
+
+You should see the puck by name, its firmware, and who it answers as.
+*"the key is wrong"* means the backup's key isn't the one the puck uses:
+take a new backup.
+
+## Step 4 · Try each part, quietly
+
+None of these makes the puck speak:
+
+```
+uv run vaani say "What's on my calendar tomorrow?" --out q.wav
+uv run vaani hear q.wav
+uv run vaani ask "In one sentence: what day is it?"
+```
+
+`say` makes the sound, `hear` turns it back into words, and `ask` gets
+your agent's answer as text. If one fails, it says which program didn't
+answer.
+
+## Step 5 · Take the puck from Home Assistant
+
+A puck listens to one helper at a time. In Home Assistant: **Settings →
+Devices & services → ESPHome → the puck → ⋮ → Delete**. (Adding it back
+later gives it back to Home Assistant; your backup isn't needed for
+that.)
+
+Open the port the puck fetches answers from:
+
+```
+sudo ufw allow from 192.168.1.0/24 to any port 8799
+```
+
+## Step 6 · Talk to it
+
+```
+uv run vaani serve
+```
+
+```
+23:40:02 answers served at http://192.168.1.20:8799/clip/
+23:40:03 kitchen: listening (home-assistant-voice-091194, Nabu Casa.Home Assistant Voice PE 26.9.0), answering as owner
+```
+
+Say *"Okay Nabu"*, wait for the ring, and ask *"what's on my calendar
+tomorrow?"*. The ring spins while your agent works (a local model can
+take half a minute), then the puck says the answer. The log says what
+it heard and what it answered:
+
+```
+23:41:10 kitchen: woken by 'Okay Nabu'
+23:41:42 kitchen: speech -- heard "What's on my calendar tomorrow?", answered 'You have the dentist at 10…'
+```
+
+The whole answer is also in Dvara's record of what each message did
+(`dvara runs`), marked as come by *vaani*.
+
+## When something's off
+
+| You see or hear | Why | What to do |
+|---|---|---|
+| The ring lights, then nothing, and the log says nothing | Home Assistant still holds the puck | Step 5 |
+| *"Sorry, I couldn't reach your agent just now."* | Dvara isn't running, or the token is wrong | `vaani ask "hi"` says which |
+| *"Sorry, I couldn't make out any words."* | Whisper heard nothing, or isn't running | `vaani hear q.wav` |
+| The ring finishes but no sound | The puck can't reach port 8799 | the `ufw` line in Step 5; `[serve] address` if this computer has several |
+| `… can be read by others; chmod 600 …` | The key file is open to others | run the `chmod` it shows |
+
+## What it doesn't do yet
+
+Each puck answers as the one person in its settings. Telling voices
+apart, so everyone in the house gets their own accounts from the same
+puck, and saying *yes* (with a PIN for money) at the puck, are next.
