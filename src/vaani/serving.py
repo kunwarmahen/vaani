@@ -9,9 +9,11 @@ from hearing its wake word.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import os
 
-from vaani import dvara, hearing, speaking
+from vaani import dvara, hearing, speaking, status
 from vaani.clips import Clips, address_towards
 from vaani.config import Config, ConfigError, Puck
 from vaani.satellite import Satellite
@@ -22,12 +24,18 @@ log = logging.getLogger("vaani")
 async def serve(conf: Config) -> int:
     if not conf.pucks:
         raise ConfigError("no pucks yet: `vaani init`")
+    lock = status.hold()
+    if lock is None:
+        raise ConfigError("another `vaani serve` is running (a puck takes one listener)")
     token = conf.dvara_token()
     for puck in conf.pucks:
         puck.key()                     # a key that can't be read is said now, not at 3am
     address = conf.address or address_towards(conf.pucks[0].host)
     clips = Clips(host=conf.host, port=conf.port, address=address).start()
     log.info("answers served at http://%s:%s/clip/", address, clips.port)
+    (status.state() / "serve.json").write_text(json.dumps({
+        "pid": os.getpid(), "answers_at": f"http://{address}:{clips.port}/clip/",
+        "pucks": [p.name for p in conf.pucks]}))
 
     async def hear(wav: bytes) -> str:
         return await asyncio.to_thread(hearing.hear, wav, url=conf.hear_url,
@@ -44,9 +52,10 @@ async def serve(conf: Config) -> int:
                                       port=conf.speak_port, voice=conf.voice)
         return clips.add(wav)
 
-    held = [Satellite(p, hear=hear, answer=answer, speak=speak) for p in conf.pucks]
+    satellites = [Satellite(p, hear=hear, answer=answer, speak=speak) for p in conf.pucks]
     try:
-        await asyncio.gather(*(s.keep() for s in held))
+        await asyncio.gather(*(s.keep() for s in satellites))
     finally:
         clips.close()
+        lock.close()
     return 0

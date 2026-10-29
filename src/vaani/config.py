@@ -34,6 +34,13 @@ A KEY IS A FILE, NEVER A LINE HERE. The puck's key opens its microphone,
 so it lives in a file of its own, readable by you alone, and this file
 can be shown on a page or pasted in a bug report.
 
+A HARNESS MAY SAY WHERE THINGS ARE. Sarathi starts Vaani beside Dvara,
+Whisper and Piper and knows their addresses better than this file can:
+``VAANI_DVARA_URL``, ``VAANI_HEAR_URL``, ``VAANI_SPEAK_HOST``,
+``VAANI_SPEAK_PORT``, ``VAANI_ADDRESS`` and ``VAANI_PORT`` win over the
+file's, and ``VAANI_DVARA_TOKEN`` over its token file. The pucks
+themselves are only ever the file's.
+
 UNKNOWN KEYS ARE ERRORS, as everywhere in this family: a misspelt
 ``persn`` must not quietly make a puck answer as nobody.
 """
@@ -43,7 +50,7 @@ from __future__ import annotations
 import os
 import re
 import tomllib
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 #: A puck's or a person's name: a word, as Dvara's actors file has them.
@@ -137,7 +144,24 @@ def load(where: Path | None = None) -> Config:
         text = where.read_text()
     except FileNotFoundError:
         raise ConfigError(f"no {where} yet: `vaani init` writes one") from None
-    return parse(text, str(where))
+    return from_env(parse(text, str(where)))
+
+
+def from_env(conf: Config) -> Config:
+    """The harness's addresses over the file's (Sarathi's, on its roads)."""
+    env = os.environ
+    changes: dict = {}
+    for name, key in (("VAANI_DVARA_URL", "dvara_url"), ("VAANI_HEAR_URL", "hear_url"),
+                      ("VAANI_SPEAK_HOST", "speak_host"), ("VAANI_ADDRESS", "address")):
+        if env.get(name, "").strip():
+            changes[key] = env[name].strip().rstrip("/")
+    for name, key in (("VAANI_SPEAK_PORT", "speak_port"), ("VAANI_PORT", "port")):
+        if env.get(name, "").strip():
+            try:
+                changes[key] = _port(int(env[name]), name)
+            except ValueError:
+                raise ConfigError(f"{name} is a port number, not {env[name]!r}") from None
+    return replace(conf, **changes) if changes else conf
 
 
 def parse(text: str, where: str = "vaani.toml") -> Config:

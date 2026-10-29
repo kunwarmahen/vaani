@@ -54,8 +54,10 @@ class Satellite:
                 await lost.wait()
                 log.warning("%s: the connection dropped; trying again", self.puck.name)
             except (APIConnectionError, OSError) as exc:
+                # the library's own sentence ends with the reason; the rest
+                # is its address list, said once already by the host
                 log.warning("%s: can't reach it at %s: %s", self.puck.name,
-                            self.puck.host, exc)
+                            self.puck.host, str(exc).rsplit(": ", 1)[-1])
             finally:
                 self.connected.clear()
             await asyncio.sleep(RETRY)

@@ -114,3 +114,37 @@ def test_an_answer_is_served_by_its_name_and_nothing_else_is():
                 urllib.request.urlopen(base + path)
     finally:
         clips.close()
+
+
+def test_a_harness_says_where_things_are_but_never_which_pucks(monkeypatch):
+    from vaani.config import from_env
+    conf = parse(GOOD.format(key="k"))
+    monkeypatch.setenv("VAANI_DVARA_URL", "http://sarathi-dvara:8770/")
+    monkeypatch.setenv("VAANI_SPEAK_PORT", "10201")
+    got = from_env(conf)
+    assert got.dvara_url == "http://sarathi-dvara:8770" and got.speak_port == 10201
+    assert got.pucks == conf.pucks
+    monkeypatch.setenv("VAANI_PORT", "eighty")
+    with pytest.raises(ConfigError, match="VAANI_PORT is a port number"):
+        from_env(conf)
+
+
+def test_status_names_a_key_file_and_never_reads_it_out(tmp_path, monkeypatch):
+    import json
+
+    from vaani import status
+    key = tmp_path / "kitchen.key"
+    key.write_text("c2VjcmV0\n")
+    key.chmod(0o600)
+    (tmp_path / "vaani.toml").write_text(GOOD.format(key=key))
+    monkeypatch.setenv("VAANI_CONFIG", str(tmp_path))
+    monkeypatch.setenv("VAANI_STATE", str(tmp_path / "state"))
+    said = status.report()
+    assert said["format"] == "vaani.status.v1" and said["serving"] is False
+    assert said["pucks"][0]["key"] == "readable" and "c2VjcmV0" not in json.dumps(said)
+    held = status.hold()
+    try:
+        assert status.report()["serving"] is True and status.hold() is None
+    finally:
+        held.close()
+    assert status.keeps()["keeps"][0]["path"] == str(tmp_path.resolve())

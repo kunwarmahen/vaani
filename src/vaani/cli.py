@@ -9,6 +9,8 @@
     vaani say "words" --out F.wav   what Piper says, into a file (no puck speaks)
     vaani ask "words" [--puck P]    what that puck's person's agent answers, as text
     vaani serve                     every puck, listening, until stopped
+    vaani status [--json]           is it here, is it listening, which pucks
+    vaani keeps --json              what a backup takes (Sarathi asks)
 
 Each step of a run can be tried on its own, without a puck speaking:
 hear, say and ask are the run's three parts.
@@ -19,6 +21,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import hashlib
+import json
 import logging
 import os
 import shutil
@@ -72,6 +75,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("words")
     p.add_argument("--puck", default="")
 
+    p = sub.add_parser("status", help="is it here, is it listening, which pucks")
+    p.add_argument("--json", action="store_true", dest="json_out")
+    p = sub.add_parser("keeps", help="what a backup should take")
+    p.add_argument("--json", action="store_true", dest="json_out")
+
     p = sub.add_parser("serve", help="every puck, listening, until stopped")
     p.add_argument("--quiet", action="store_true", help="only problems in the log")
     return parser
@@ -86,6 +94,19 @@ def main(argv: list[str] | None = None) -> int:
             return _backup(args)
         if args.command == "key":
             return _key(args)
+        if args.command in ("status", "keeps"):
+            from vaani import status
+            got = status.report() if args.command == "status" else status.keeps()
+            if args.json_out:
+                print(json.dumps(got, indent=2))
+            elif args.command == "keeps":
+                print("\n".join(f"{k['path']}  {k['what']}" for k in got["keeps"]))
+            else:
+                print(f"vaani {got['version']}: {'listening' if got['serving'] else 'not running'}"
+                      + (f" ({got['problem']})" if got.get("problem") else ""))
+                for p in got["pucks"]:
+                    print(f"  {p['name']:<10} {p['host']:<15} as {p['person']}, key {p['key']}")
+            return 0
         conf = settings.load()
         if args.command == "check":
             return asyncio.run(_check(conf, args.puck))
@@ -110,6 +131,8 @@ def main(argv: list[str] | None = None) -> int:
             from vaani.serving import serve
             logging.basicConfig(level=logging.WARNING if args.quiet else logging.INFO,
                                 format="%(asctime)s %(message)s", datefmt="%H:%M:%S")
+            # ESPHome's client says each failed try too; Vaani's line is enough
+            logging.getLogger("aioesphomeapi").setLevel(logging.ERROR)
             return asyncio.run(serve(conf))
     except (ConfigError, hearing.HearingError, speaking.SpeakingError,
             dvara.DvaraError, keys.NoKey, OSError) as exc:

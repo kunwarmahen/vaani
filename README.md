@@ -127,7 +127,13 @@ agent = "minder"
 ```
 
 Unknown keys are errors. `VAANI_CONFIG` names another folder;
-`VAANI_DVARA_TOKEN` gives the token instead of the file. Open port
+`VAANI_DVARA_TOKEN` gives the token instead of the file. A harness (Sarathi)
+says where the rest are with `VAANI_DVARA_URL`, `VAANI_HEAR_URL`,
+`VAANI_SPEAK_HOST`, `VAANI_SPEAK_PORT`, `VAANI_ADDRESS` and `VAANI_PORT`;
+the pucks are only ever the file's. `vaani status --json` (`vaani.status.v1`)
+says whether it's listening and which pucks, never a key; `vaani keeps
+--json` names the settings folder for a backup. One `vaani serve` at a
+time (a lock in `$VAANI_STATE`, default `~/.local/state/vaani`). Open port
 **8799** to the puck (`sudo ufw allow from 192.168.1.0/24 to any port 8799`):
 it fetches each answer from there.
 
@@ -146,6 +152,7 @@ src/vaani/
 ├── clips.py      answers kept a few minutes, served by name to the puck
 ├── keys.py       a puck's key, out of a backup of its flash
 ├── serving.py    `vaani serve`: every puck, and the answers they fetch
+├── status.py     `vaani status --json`, `vaani keeps --json`; a lock, not a pid
 └── version.py    the day of the last commit and that day's count
 ```
 
@@ -154,7 +161,7 @@ src/vaani/
 ## Tests
 
 ```
-uv run pytest -q        # 14 passed
+uv run pytest -q        # 16 passed
 ```
 
 ## License
