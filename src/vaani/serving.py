@@ -17,6 +17,7 @@ from vaani import asking, dvara, flac, hearing, runs, speaking, status
 from vaani import config as settings
 from vaani.clips import Clips, address_towards
 from vaani.config import Config, ConfigError, Puck
+from vaani.page import PageServer, page_token
 from vaani.run import Said
 from vaani.satellite import Satellite
 from vaani.voices import Prints
@@ -38,6 +39,15 @@ async def serve(conf: Config) -> int:
     clips = Clips(host=conf.host, port=conf.port, address=address,
                   fetched=book.fetched).start()
     log.info("answers served at http://%s:%s/clip/", address, clips.port)
+    prints = Prints(settings.path().parent / "voices")
+    page = None
+    if conf.page_port:
+        page = PageServer(prints, page_token(), host=conf.page_host,
+                          port=conf.page_port).start()
+        log.info("its page at http://%s:%s/ (`vaani page` prints it with its key)",
+                 "127.0.0.1" if conf.page_host in ("0.0.0.0", "::") else conf.page_host,
+                 page.port)
+
     # each puck held or not, and why: what `vaani status` and Sarathi's
     # Check say, so "running" is never mistaken for "listening"
     held = {p.name: "not reached yet" for p in conf.pucks}
@@ -45,6 +55,7 @@ async def serve(conf: Config) -> int:
     def write() -> None:
         (status.state() / "serve.json").write_text(json.dumps({
             "pid": os.getpid(), "answers_at": f"http://{address}:{clips.port}/clip/",
+            "page_port": page.port if page else 0,
             "pucks": [p.name for p in conf.pucks], "problems": held}))
 
     def told(name: str, problem: str) -> None:
@@ -58,11 +69,9 @@ async def serve(conf: Config) -> int:
         return await asyncio.to_thread(hearing.hear, wav, url=conf.hear_url,
                                        model=conf.hear_model, language=conf.language)
 
-    prints = Prints(settings.path().parent / "voices")
-
     def fresh(puck: Puck) -> tuple[Config, Puck]:
         """vaani.toml as it is now, so who a puck answers (person, agent,
-        people, from the page or `vaani puck`) holds from the next question.
+        people, from Sarathi's Settings or `vaani puck`) holds from the next question.
         Where and how it connects stay as they started."""
         try:
             now = settings.load()
@@ -99,5 +108,7 @@ async def serve(conf: Config) -> int:
         await asyncio.gather(*(s.keep() for s in satellites))
     finally:
         clips.close()
+        if page is not None:
+            page.close()
         lock.close()
     return 0

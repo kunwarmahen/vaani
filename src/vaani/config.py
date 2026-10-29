@@ -23,6 +23,10 @@ never a library pulled in here.
     address = "192.168.1.20"                 # where a puck fetches an answer
     port = 8799
 
+    [page]                                   # Vaani's own page (port 0: none)
+    host = "127.0.0.1"
+    port = 8797
+
     [[puck]]
     name = "kitchen"
     host = "192.168.1.55"
@@ -42,8 +46,9 @@ can be shown on a page or pasted in a bug report.
 A HARNESS MAY SAY WHERE THINGS ARE. Sarathi starts Vaani beside Dvara,
 Whisper and Piper and knows their addresses better than this file can:
 ``VAANI_DVARA_URL``, ``VAANI_HEAR_URL``, ``VAANI_SPEAK_HOST``,
-``VAANI_SPEAK_PORT``, ``VAANI_ADDRESS`` and ``VAANI_PORT`` win over the
-file's, and ``VAANI_DVARA_TOKEN`` over its token file. In a container,
+``VAANI_SPEAK_PORT``, ``VAANI_ADDRESS``, ``VAANI_PORT``,
+``VAANI_PAGE_HOST`` and ``VAANI_PAGE_PORT`` win over the file's, and
+``VAANI_DVARA_TOKEN`` over its token file. In a container,
 ``VAANI_LOCALHOST`` says what this computer is called from inside
 (``host.containers.internal``), and every 127.0.0.1 or localhost in
 the file is read as that. The pucks themselves are only ever the
@@ -67,12 +72,15 @@ NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
 ESPHOME_PORT = 6053
 #: Where answers wait for a puck to fetch them.
 SERVE_PORT = 8799
+#: Vaani's own page: each puck, its last questions, the voices.
+PAGE_PORT = 8797
 
 KNOWN = {
     "dvara": {"url", "token_file", "agent"},
     "hear": {"url", "model", "language"},
     "speak": {"host", "port", "voice"},
     "serve": {"address", "host", "port"},
+    "page": {"host", "port"},
     "puck": {"name", "host", "port", "key_file", "person", "agent", "people"},
     "voices": {"threshold", "margin"},
 }
@@ -121,6 +129,8 @@ class Config:
     address: str = ""
     host: str = "0.0.0.0"
     port: int = SERVE_PORT
+    page_host: str = "127.0.0.1"
+    page_port: int = PAGE_PORT
     threshold: float = 0.6
     margin: float = 0.15
     pucks: tuple[Puck, ...] = field(default_factory=tuple)
@@ -165,13 +175,16 @@ def from_env(conf: Config) -> Config:
     env = os.environ
     changes: dict = {}
     for name, key in (("VAANI_DVARA_URL", "dvara_url"), ("VAANI_HEAR_URL", "hear_url"),
-                      ("VAANI_SPEAK_HOST", "speak_host"), ("VAANI_ADDRESS", "address")):
+                      ("VAANI_SPEAK_HOST", "speak_host"), ("VAANI_ADDRESS", "address"),
+                      ("VAANI_PAGE_HOST", "page_host")):
         if env.get(name, "").strip():
             changes[key] = env[name].strip().rstrip("/")
-    for name, key in (("VAANI_SPEAK_PORT", "speak_port"), ("VAANI_PORT", "port")):
+    for name, key in (("VAANI_SPEAK_PORT", "speak_port"), ("VAANI_PORT", "port"),
+                      ("VAANI_PAGE_PORT", "page_port")):
         if env.get(name, "").strip():
             try:
-                changes[key] = _port(int(env[name]), name)
+                changes[key] = (0 if key == "page_port" and int(env[name]) == 0
+                                else _port(int(env[name]), name))
             except ValueError:
                 raise ConfigError(f"{name} is a port number, not {env[name]!r}") from None
     conf = replace(conf, **changes) if changes else conf
@@ -202,6 +215,7 @@ def parse(text: str, where: str = "vaani.toml") -> Config:
     if not isinstance(data.get("puck", []), list):
         raise ConfigError(f"{where}: pucks are [[puck]] tables, one per puck")
     d, h, s, v = (data.get(k, {}) for k in ("dvara", "hear", "speak", "serve"))
+    pg = data.get("page", {})
     heard = data.get("voices", {})
     for key in ("threshold", "margin"):
         value = heard.get(key, 0.5)
@@ -242,6 +256,8 @@ def parse(text: str, where: str = "vaani.toml") -> Config:
         address=str(v.get("address", "")),
         host=str(v.get("host", base.host)),
         port=_port(v.get("port", base.port), where),
+        page_host=str(pg.get("host", base.page_host)),
+        page_port=0 if pg.get("port") == 0 else _port(pg.get("port", base.page_port), where),
         threshold=float(heard.get("threshold", base.threshold)),
         margin=float(heard.get("margin", base.margin)),
         pucks=tuple(pucks))

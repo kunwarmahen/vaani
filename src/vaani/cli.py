@@ -13,6 +13,7 @@
     vaani puck NAME [--person P] [--agent A] [--people a,b]
                                     change who a puck answers (read at its next question)
     vaani runs [--json]             the last questions: heard, whose, how long, fetched
+    vaani page                      the page's address, with its key
     vaani voices fetch              the speaker model (once), to tell voices apart
     vaani voices enroll NAME --at-puck kitchen   their next 3 sentences there
                                     make their voice print (or: FILE.wav ...)
@@ -85,6 +86,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("status", help="is it here, is it listening, which pucks")
     p.add_argument("--json", action="store_true", dest="json_out")
+    sub.add_parser("page", help="the page's address, with its key")
     p = sub.add_parser("puck", help="change who a puck answers as, and which people it "
                        "tells apart")
     p.add_argument("name")
@@ -142,6 +144,14 @@ def main(argv: list[str] | None = None) -> int:
             return _runs(args)
         if args.command == "puck":
             return _puck(args)
+        if args.command == "page":
+            from vaani.page import page_token
+            conf = settings.load()
+            if not conf.page_port:
+                raise ConfigError("the page is off ([page] port = 0)")
+            host = "127.0.0.1" if conf.page_host in ("0.0.0.0", "::") else conf.page_host
+            print(f"http://{host}:{conf.page_port}/#token={page_token()}")
+            return 0
         if args.command == "voices":
             return _voices(args)
         conf = settings.load()

@@ -84,6 +84,15 @@ def report() -> dict[str, Any]:
     out["serving"] = running is not None
     if running:
         out["answers_at"] = running.get("answers_at")
+        out["page_port"] = running.get("page_port") or 0
+    from vaani import runs
+    last = runs.read(1)
+    if last:                           # the newest question, for a card's one line
+        r = last[0]
+        out["last"] = {"at": r.get("at"), "puck": r.get("puck"),
+                       "outcome": "played" if r.get("fetched") else
+                       "failed" if r.get("error") else
+                       "not fetched" if r.get("url") else r.get("ended") or "ended"}
     problems = (running or {}).get("problems") or {}
     for puck in conf.pucks:
         key = Path(puck.key_file).expanduser()

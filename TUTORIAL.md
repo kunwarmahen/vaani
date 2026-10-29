@@ -171,20 +171,39 @@ The whole answer is also in Dvara's record of what each message did
 | `… can be read by others; chmod 600 …` | The key file is open to others | run the `chmod` it shows |
 | `/dev/ttyACM0 can't be opened` (backup) | you may not open the puck's USB port | the two `sudo` lines in Step 2 |
 | The log says *it had no key … gave it a new one* | You deleted the puck from Home Assistant, which wipes its key | nothing: Vaani gave it a new one. The key in your backup's `api-key.txt` is now the old one |
-| Settings → Vaani: a question ends *never fetched* | Vaani answered, the puck never came for the sound | the `ufw` line in Step 5 |
+| Vaani's page: a question ends *never fetched* | Vaani answered, the puck never came for the sound | the `ufw` line in Step 5 |
 
-## Watching it
+## Watching it: Vaani's page
 
-`uv run vaani runs` lists the last questions, one line each: what it
-heard, whose question it took it to be, the answer, how long each step
-took, and whether the puck fetched the answer. With Sarathi, the same
-is on **Settings → Vaani**, along with each puck's state, and it checks
-again every few seconds.
+While `vaani serve` runs, Vaani has a page of its own. Print its
+address (it carries the page's key, so keep it to yourself) and open it:
+
+```
+uv run vaani page
+http://127.0.0.1:8797/#token=…
+```
+
+With Sarathi, it's the **Vaani** card under **Your pages**, already
+signed in. The page shows:
+
+* **Each puck**, green while it's listening, red with the reason when
+  it isn't (*"The device is using plaintext protocol"*, *not reached
+  yet*).
+* **The last questions**, newest first, each with its steps: *woken by
+  Okay Nabu → heard 0.8s → as owner (the puck's person) → agent 47s →
+  spoken 0.4s → played*. The step that stopped is red. *never fetched*
+  means Vaani answered but the puck never came for the sound: that's
+  the firewall (Step 5).
+* **Voices**, with *Learn their voice* and *Forget* (Step 7).
+
+It looks again every few seconds, so you can ask at the puck and watch.
+In a terminal, `uv run vaani runs` lists the same questions, one line
+each.
 
 ## Step 7 · Everyone in the house, each their own
 
-(With Sarathi, all of this is on **Settings → Vaani**: tick the people,
-then press **Learn their voice**. The commands below do the same.)
+(With Sarathi: tick the people in **Settings → Vaani**, then press
+**Learn their voice** on Vaani's page. The commands below do the same.)
 
 So far the puck answers as one person. To have it tell people apart,
 so each gets their own calendar and mail:
@@ -213,7 +232,9 @@ so each gets their own calendar and mail:
    uv run vaani voices fetch
    ```
 
-4. **Each person teaches it their voice**, with `vaani serve` running:
+4. **Each person teaches it their voice**, with `vaani serve` running.
+   On Vaani's page: under **Voices**, pick *asha* and the puck, press
+   **Learn their voice**. Or in a terminal:
 
    ```
    uv run vaani voices enroll asha --at-puck kitchen

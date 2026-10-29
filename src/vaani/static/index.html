@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Vaani</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+/* Vaani's page. One accent (indigo, the puck's ring: listening, the main
+   button) on the family's paper; green for a step done, red for the one
+   that stopped. No fonts are fetched. Light and dark are the same tokens
+   swapped. */
+:root {
+  color-scheme: light;
+  --paper: #f4f3f6; --sheet: #fcfbfd; --sunk: #e9e7ee; --line: #d9d6e0;
+  --ink: #1d1b22; --ink-2: #4f4b5a; --ink-3: #726d7d;
+  --ring: #5a4bb0; --ring-ink: #ffffff; --ring-soft: rgba(90, 75, 176, .11);
+  --ok: #2c7a52; --bad: #b3261e; --wait: #8a5a00;
+  --focus: rgba(90, 75, 176, .45);
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans",
+          "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --deva: "Noto Sans Devanagari", "Noto Serif Devanagari", "Mangal",
+          "Kohinoor Devanagari", system-ui, sans-serif;
+  --measure: 860px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #131217; --sheet: #19181e; --sunk: #222028; --line: #302d38;
+    --ink: #e9e7ee; --ink-2: #b1acbd; --ink-3: #8b8697;
+    --ring: #a597f0; --ring-ink: #15121f; --ring-soft: rgba(165, 151, 240, .14);
+    --ok: #5cc28c; --bad: #f07b6f; --wait: #e3b04f;
+    --focus: rgba(165, 151, 240, .5);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #131217; --sheet: #19181e; --sunk: #222028; --line: #302d38;
+  --ink: #e9e7ee; --ink-2: #b1acbd; --ink-3: #8b8697;
+  --ring: #a597f0; --ring-ink: #15121f; --ring-soft: rgba(165, 151, 240, .14);
+  --ok: #5cc28c; --bad: #f07b6f; --wait: #e3b04f;
+  --focus: rgba(165, 151, 240, .5);
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.5 var(--sans); }
+.wrap { max-width: var(--measure); margin: 0 auto; padding: 28px 16px 64px; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+code { font-family: var(--mono); font-size: 13px; }
+[hidden] { display: none !important; }
+
+header { display: flex; align-items: flex-end; gap: 18px; flex-wrap: wrap; margin-bottom: 22px; }
+.mark { font-family: var(--deva); font-size: 52px; line-height: .9; font-weight: 600; }
+.mark small { display: block; font: 14px/1.4 var(--sans); color: var(--ink-3); margin-top: 10px; }
+.state-line { margin-left: auto; text-align: right; color: var(--ink-2); font-size: 14px;
+              max-width: 52ch; }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px;
+       vertical-align: 1px; background: var(--ink-3); }
+.dot.on { background: var(--ok); box-shadow: 0 0 0 4px rgba(44, 122, 82, .15); }
+.dot.off { background: var(--bad); }
+
+h2 { font-size: 19px; font-weight: 650; margin: 30px 0 10px; }
+.lede { color: var(--ink-2); margin: 0 0 12px; font-size: 14px; }
+.empty { color: var(--ink-3); }
+.note { border-radius: 10px; padding: 12px 14px; margin: 10px 0; background: var(--ring-soft); }
+.note.bad { background: rgba(179, 38, 30, .1); color: var(--bad); }
+.note.wait { background: rgba(138, 90, 0, .1); }
+
+.pucks { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+.puck { background: var(--sheet); border: 1px solid var(--line); border-radius: 12px;
+        padding: 14px 16px; }
+.puck .name { font-weight: 650; font-size: 16px; }
+.puck .what { color: var(--ink-2); font-size: 14px; margin-top: 4px; overflow-wrap: anywhere; }
+.puck .why { color: var(--bad); font-size: 14px; margin-top: 4px; overflow-wrap: anywhere; }
+
+.runs { list-style: none; margin: 0; padding: 0; }
+.run { border-top: 1px solid var(--line); padding: 12px 0; overflow-wrap: anywhere; }
+.run:last-child { border-bottom: 1px solid var(--line); }
+.run .top { display: flex; gap: 10px; align-items: baseline; }
+.run .puckname { font-weight: 650; }
+.run .when { margin-left: auto; color: var(--ink-3); font-size: 13px;
+             font-variant-numeric: tabular-nums; white-space: nowrap; }
+.run .heard { font-size: 16px; margin: 2px 0; }
+.run .answer { color: var(--ink-2); }
+.run .error { color: var(--bad); }
+.steps { display: flex; flex-wrap: wrap; gap: 4px 0; margin-top: 6px; font-size: 12.5px; }
+.step { padding: 1px 8px; border-radius: 999px; background: rgba(44, 122, 82, .1); color: var(--ok); }
+.step.bad { background: rgba(179, 38, 30, .12); color: var(--bad); font-weight: 600; }
+.step small { color: var(--ink-3); font-size: 12px; }
+.arrow { color: var(--ink-3); padding: 1px 4px; }
+
+.voices { background: var(--sheet); border: 1px solid var(--line); border-radius: 12px;
+          padding: 14px 16px; }
+.voice { display: flex; gap: 10px; align-items: baseline; padding: 6px 0;
+         border-bottom: 1px dashed var(--line); }
+.voice .who { font-weight: 600; }
+.voice .meta { color: var(--ink-3); font-size: 13px; }
+.voice button { margin-left: auto; }
+form.learn { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-top: 12px; }
+form.learn label { display: grid; gap: 3px; font-size: 13px; color: var(--ink-2); }
+form.learn select { border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px;
+                    background: var(--paper); min-width: 9em; }
+.btn { border: 1px solid var(--line); background: var(--sheet); border-radius: 8px;
+       padding: 6px 12px; cursor: pointer; }
+.btn:hover { border-color: var(--ink-3); }
+.btn.main { background: var(--ring); border-color: var(--ring); color: var(--ring-ink);
+            font-weight: 600; }
+.btn.link { border: 0; background: none; padding: 2px 6px; color: var(--ink-2); }
+.btn.link:hover { color: var(--bad); text-decoration: underline; }
+.btn[disabled] { opacity: .5; cursor: default; }
+.said { min-height: 1.5em; font-size: 14px; color: var(--ink-2); margin-top: 8px; }
+.said.bad { color: var(--bad); }
+footer { margin-top: 36px; color: var(--ink-3); font-size: 13px; }
+@media (max-width: 560px) {
+  .state-line { margin-left: 0; text-align: left; }
+  .mark { font-size: 44px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="mark">वाणी<small>Vaani — the pucks you talk to, answered by your agents</small></div>
+    <div class="state-line" id="state-line">…</div>
+  </header>
+
+  <div id="signin" class="note bad" hidden>This page needs its key. Open it from
+    Sarathi's <b>Your pages</b>, or with the address <code>vaani page</code> prints.</div>
+  <div id="problem" class="note bad" role="alert" hidden></div>
+
+  <main id="main" hidden>
+    <section aria-labelledby="h-pucks">
+      <h2 id="h-pucks">Pucks</h2>
+      <div id="pucks" class="pucks"></div>
+      <div id="learning" class="note wait" role="status" hidden></div>
+    </section>
+
+    <section aria-labelledby="h-runs">
+      <h2 id="h-runs">Last questions</h2>
+      <p class="lede">Each question, step by step: what woke the puck, what Whisper heard,
+        whose question it was taken to be, how long your agent took, and whether the puck
+        came for the answer. A step that stopped is red. This page looks again every few
+        seconds.</p>
+      <ul id="runs" class="runs" aria-live="polite"></ul>
+    </section>
+
+    <section aria-labelledby="h-voices">
+      <h2 id="h-voices">Voices</h2>
+      <p class="lede">So a puck can tell who's asking. A voice is learned at the puck itself:
+        press <b>Learn their voice</b>, then that person says the wake word and any sentence
+        there, three times. Only a few numbers about the voice are kept, never the sound.
+        Which people a puck tells apart is a setting (with Sarathi: Settings → Vaani).</p>
+      <div class="voices">
+        <div id="voices"></div>
+        <form class="learn" id="learn">
+          <label>Whose <select id="learn-who"></select></label>
+          <label>At <select id="learn-at"></select></label>
+          <button class="btn main" type="submit">Learn their voice</button>
+        </form>
+        <div id="said" class="said" role="status"></div>
+      </div>
+    </section>
+  </main>
+  <footer id="foot"></footer>
+</div>
+<script>
+"use strict";
+// The key arrives after "#token=", is kept in this browser, and leaves the
+// address bar at once. Every value goes in as text, never as markup.
+const KEY = "vaani.page.token";
+const EVERY = 4000;
+let token = "";
+try {
+  const fresh = new URLSearchParams(location.hash.slice(1)).get("token");
+  if (fresh) {
+    localStorage.setItem(KEY, fresh);
+    history.replaceState(null, "", location.pathname + location.search);
+  }
+  token = fresh || localStorage.getItem(KEY) || "";
+} catch (_) {
+  token = new URLSearchParams(location.hash.slice(1)).get("token") || "";
+}
+let formsDrawn = "";
+
+function h(spec, attrs, ...kids) {
+  const [tag, ...classes] = spec.split(".");
+  const el = document.createElement(tag || "div");
+  if (classes.length) el.className = classes.join(" ");
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v !== undefined && v !== null && v !== false) el.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()) {
+    if (kid === null || kid === undefined || kid === false) continue;
+    el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+  }
+  return el;
+}
+
+async function api(path, body) {
+  const init = { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" };
+  if (body !== undefined) {
+    init.method = "POST";
+    init.headers["Content-Type"] = "application/json";
+    init.body = JSON.stringify(body);
+  }
+  const res = await fetch(path, init);
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401) { signedOut(); throw new Error("the page's key is wrong"); }
+  if (!res.ok) throw new Error(data.detail || `status ${res.status}`);
+  return data;
+}
+
+function signedOut() {
+  try { localStorage.removeItem(KEY); } catch (_) { /* private window */ }
+  token = "";
+  document.getElementById("signin").hidden = false;
+  document.getElementById("main").hidden = true;
+}
+
+const ago = (at) => {
+  const s = Math.max(0, Math.round(Date.now() / 1000 - at));
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+  return new Date(at * 1000).toLocaleString([], { weekday: "short", day: "numeric",
+                                                  hour: "2-digit", minute: "2-digit" });
+};
+
+function drawState(got) {
+  const st = got.status || {};
+  const line = document.getElementById("state-line");
+  const pucks = st.pucks || [];
+  const listening = pucks.filter((p) => p.listening).length;
+  line.replaceChildren(
+    h(`span.dot.${st.serving && listening === pucks.length && pucks.length ? "on" : "off"}`),
+    !st.serving ? "Not running: the pucks light up and nobody answers"
+      : pucks.length ? `${listening} of ${pucks.length} puck${pucks.length === 1 ? "" : "s"} listening`
+      : "Running, with no pucks yet (vaani init)");
+  const settings = Object.fromEntries((got.pucks || []).map((p) => [p.name, p]));
+  document.getElementById("pucks").replaceChildren(...pucks.map((p) => {
+    const conf = settings[p.name] || {};
+    const people = (conf.people || []).length
+      ? `Tells apart ${conf.people.join(", ")}; unsure, answers as ${p.person}.`
+      : `Answers as ${p.person}.`;
+    return h("div.puck", {},
+      h("div.name", {}, h(`span.dot.${p.listening ? "on" : "off"}`), p.name),
+      p.listening ? h("div.what", {}, `Listening at ${p.host}, with ${p.agent || "the default agent"}.`)
+        : h("div.why", {}, st.serving ? `Not listening: ${p.problem || "not reached yet"}`
+                                      : "Vaani isn't running."),
+      h("div.what", {}, people),
+      p.key !== "readable" ? h("div.why", {}, "No key file: vaani key FLASH.bin") : null);
+  }));
+  const e = got.enrolling;
+  const learning = document.getElementById("learning");
+  learning.hidden = !e;
+  if (e) {
+    const stop = h("button.btn", { type: "button" }, "Stop");
+    stop.addEventListener("click", () => act("stop", {}));
+    learning.replaceChildren(`Learning ${e.person}'s voice at the ${e.puck} puck: ${e.left} ` +
+      `more. ${e.person} says the wake word, then any sentence; the puck counts down. `, stop);
+  }
+  drawRuns(got.runs || []);
+  drawVoices(got);
+  document.getElementById("foot").textContent =
+    `Vaani ${st.version || ""}${st.answers_at ? ` · answers served at ${st.answers_at}` : ""}`;
+}
+
+function drawRuns(runs) {
+  const list = document.getElementById("runs");
+  if (!runs.length) {
+    list.replaceChildren(h("li.empty", {}, "None yet. Say the wake word at a puck and ask " +
+      "something; it shows here when the run ends."));
+    return;
+  }
+  list.replaceChildren(...runs.map((r) => {
+    const took = r.took || {};
+    const steps = [];
+    const step = (label, ok, small) => steps.push(h(`span.step${ok ? "" : ".bad"}`, {}, label,
+      small ? h("small", {}, ` ${small}`) : null));
+    step("woken", true, r.woke_by ? `by ${r.woke_by}` : "");
+    if (r.ended === "silence" || r.ended === "stopped") step("nothing said", false);
+    if (r.heard || took.hear != null) step(r.heard ? "heard" : "heard nothing", !!r.heard,
+                                           took.hear != null ? `${took.hear}s` : "");
+    if (r.person) step(`as ${r.person}`, true, r.how || "");
+    if (took.agent != null) step("agent", !!r.answer && !r.error, `${took.agent}s`);
+    if (took.speak != null) step("spoken", true, `${took.speak}s`);
+    if (r.url) step(r.fetched ? "played" : "never fetched", !!r.fetched,
+                    r.fetched ? "" : "the puck didn't come for it");
+    const said = r.error && !r.answer ? r.error : r.answer;
+    return h("li.run", {},
+      h("div.top", {}, h("span.puckname", {}, r.puck || "?"), h("span.when", {}, ago(r.at))),
+      r.heard ? h("div.heard", {}, "“", r.heard, "”") : null,
+      said ? h(`div.${r.error ? "error" : "answer"}`, {}, "→ ", said) : null,
+      h("div.steps", {}, ...steps.flatMap((s, i) => (i ? [h("span.arrow", {}, "→"), s] : [s]))));
+  }));
+}
+
+function drawVoices(got) {
+  const known = got.voices || [];
+  document.getElementById("voices").replaceChildren(...(known.length ? known.map((v) => {
+    const forget = h("button.btn.link", { type: "button" }, "Forget");
+    forget.addEventListener("click", () => {
+      if (confirm(`Forget ${v.person}'s voice? It can be learned again.`)) {
+        act("forget", { person: v.person });
+      }
+    });
+    return h("div.voice", {}, h("span.who", {}, v.person),
+      h("span.meta", {}, `from ${v.samples} sample${v.samples === 1 ? "" : "s"}`), forget);
+  }) : [h("p.empty", {}, "No voices learned yet.")]));
+  // the pickers are drawn again only when the pucks' people change, so a
+  // choice being made isn't reset under the pointer every few seconds
+  const pucks = got.pucks || [];
+  const sig = JSON.stringify(pucks);
+  if (sig === formsDrawn) return;
+  formsDrawn = sig;
+  const people = [...new Set(pucks.flatMap((p) => [...(p.people || []), p.person]))];
+  document.getElementById("learn-who").replaceChildren(
+    ...people.map((x) => h("option", { value: x }, x)));
+  document.getElementById("learn-at").replaceChildren(
+    ...pucks.map((p) => h("option", { value: p.name }, p.name)));
+}
+
+function say(text, bad) {
+  const el = document.getElementById("said");
+  el.textContent = text || "";
+  el.classList.toggle("bad", !!bad);
+}
+
+async function act(what, body) {
+  say("…");
+  try { say((await api(`/api/voices/${what}`, body)).said); }
+  catch (err) { say(err.message, true); }
+  look();
+}
+
+async function look() {
+  if (!token) { signedOut(); return; }
+  try {
+    const got = await api("/api/state");
+    document.getElementById("main").hidden = false;
+    document.getElementById("problem").hidden = true;
+    drawState(got);
+  } catch (err) {
+    if (!token) return;
+    const p = document.getElementById("problem");
+    p.textContent = `Vaani didn't answer: ${err.message}`;
+    p.hidden = false;
+  }
+}
+
+document.getElementById("learn").addEventListener("submit", (e) => {
+  e.preventDefault();
+  act("enroll", { person: document.getElementById("learn-who").value,
+                  puck: document.getElementById("learn-at").value });
+});
+look();
+setInterval(() => { if (!document.hidden) look(); }, EVERY);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) look(); });
+</script>
+</body>
+</html>

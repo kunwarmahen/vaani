@@ -97,10 +97,12 @@ Assistant holds it, Vaani is ignored. Then:
 vaani serve
 ```
 
-**What it did.** `vaani runs` lists the last questions: heard, whose,
-each step's time, the answer, and whether the puck fetched it. With
-Sarathi, **Settings → Vaani** shows the same, live, plus each puck
-listening or why not.
+**Its page.** `vaani serve` also serves a page of its own on
+127.0.0.1:8797 (`vaani page` prints its address with its key; with
+Sarathi, its card under Your pages): each puck listening or why not,
+the last questions step by step (woken, heard, whose, each step's time,
+played or never fetched), and the voices, learned and forgotten there.
+`vaani runs` lists the same questions in a terminal.
 
 **Several people at one puck.** List them on the puck (`vaani puck
 kitchen --people mahen,asha --person house`, names from Dvara's actors
@@ -147,6 +149,10 @@ port = 10200
 # address = "192.168.1.20"   # where a puck fetches answers (default: found)
 port = 8799
 
+[page]                        # Vaani's own page; port = 0 for none
+host = "127.0.0.1"
+port = 8797
+
 [[puck]]
 name = "kitchen"
 host = "192.168.1.55"
@@ -163,7 +169,8 @@ agent = "minder"                             # an agent every one of its people 
 Unknown keys are errors. `VAANI_CONFIG` names another folder;
 `VAANI_DVARA_TOKEN` gives the token instead of the file. A harness (Sarathi)
 says where the rest are with `VAANI_DVARA_URL`, `VAANI_HEAR_URL`,
-`VAANI_SPEAK_HOST`, `VAANI_SPEAK_PORT`, `VAANI_ADDRESS` and `VAANI_PORT`
+`VAANI_SPEAK_HOST`, `VAANI_SPEAK_PORT`, `VAANI_ADDRESS`, `VAANI_PORT`,
+`VAANI_PAGE_HOST` and `VAANI_PAGE_PORT`
 (`VAANI_LOCALHOST`: what 127.0.0.1 is called from inside a container);
 the pucks are only ever the file's. `vaani status --json` (`vaani.status.v1`)
 says whether it's running and, per puck, whether it's listening (or
@@ -192,6 +199,8 @@ src/vaani/
 ├── clips.py      answers kept a few minutes, served by name to the puck
 ├── flac.py       an answer as the puck plays it: FLAC, 48 kHz, no library
 ├── runs.py       the last fifty questions, step by step, for `vaani runs`
+├── page.py       its own page (8797): pucks, questions, voices; a key, always
+├── static/       the page itself
 ├── keys.py       a puck's key, out of a backup of its flash
 ├── serving.py    `vaani serve`: every puck, and the answers they fetch
 ├── status.py     `vaani status --json`, `vaani keeps --json`; a lock, not a pid
@@ -203,7 +212,7 @@ src/vaani/
 ## Tests
 
 ```
-uv run pytest -q        # 26 passed
+uv run pytest -q        # 29 passed
 ```
 
 ## License
