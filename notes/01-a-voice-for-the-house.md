@@ -34,6 +34,23 @@ Home Assistant holds it, Vaani connects and is ignored. Taking the puck
 out of Home Assistant's ESPHome integration hands it over; adding it
 back hands it back.
 
+**LET GO, THE PUCK HAS NO KEY.** Home Assistant clears a puck's key when
+it is deleted there, so the puck talks unencrypted and refuses the key
+from the backup. Vaani then does what Home Assistant does on adopting
+one: a new random key, written to the key file *first* (a key the puck
+took and Vaani lost would lock Vaani out), then given to the puck. This
+puck's firmware offers only the plain connection for that, so the key
+crosses the house's network once in the clear, as Home Assistant's
+would; a newer one that accepts the all-zero key gets it encrypted. A
+new key rather than the old one, since Home Assistant still has the
+old. ESPHome takes it as base64 text, not the 32 bytes -- given bytes,
+it just says no.
+
+**RUNNING IS NOT LISTENING.** The serve records, per puck, whether it is
+held and the last reason it isn't; `vaani status` and Sarathi's Check
+say that, so a serve retrying a refused puck every five seconds is red,
+not green.
+
 ## A run, in the puck's own steps
 
 ```
@@ -123,8 +140,14 @@ as the puck sends them:
 fetched 24620 bytes of b'RIFF' | ended: speech
 ```
 
-Not run yet: the puck itself taking a run. That needs it out of Home
-Assistant, and a person in the room to hear it.
+Taken from Home Assistant (2026-10-29): the serve's log said *"The
+device is using plaintext protocol"* every five seconds while Sarathi's
+Check said *Vaani is listening* -- both now fixed. Then:
+
+```
+kitchen: it had no key (let go by Home Assistant?); gave it a new one, kept in ~/.config/vaani/kitchen.key
+09:45:36 kitchen: listening (home-assistant-voice-091194, Nabu Casa.Home Assistant Voice PE 26.9.0), answering as owner
+```
 
 ## What is not here yet
 

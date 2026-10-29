@@ -35,9 +35,21 @@ async def serve(conf: Config) -> int:
     address = conf.address or address_towards(conf.pucks[0].host)
     clips = Clips(host=conf.host, port=conf.port, address=address).start()
     log.info("answers served at http://%s:%s/clip/", address, clips.port)
-    (status.state() / "serve.json").write_text(json.dumps({
-        "pid": os.getpid(), "answers_at": f"http://{address}:{clips.port}/clip/",
-        "pucks": [p.name for p in conf.pucks]}))
+    # each puck held or not, and why: what `vaani status` and Sarathi's
+    # Check say, so "running" is never mistaken for "listening"
+    held = {p.name: "not reached yet" for p in conf.pucks}
+
+    def write() -> None:
+        (status.state() / "serve.json").write_text(json.dumps({
+            "pid": os.getpid(), "answers_at": f"http://{address}:{clips.port}/clip/",
+            "pucks": [p.name for p in conf.pucks], "problems": held}))
+
+    def told(name: str, problem: str) -> None:
+        if held.get(name) != problem:
+            held[name] = problem
+            write()
+
+    write()
 
     async def hear(wav: bytes) -> str:
         return await asyncio.to_thread(hearing.hear, wav, url=conf.hear_url,
@@ -60,7 +72,8 @@ async def serve(conf: Config) -> int:
                                       port=conf.speak_port, voice=conf.voice)
         return clips.add(wav)
 
-    satellites = [Satellite(p, hear=hear, answer=answer, speak=speak) for p in conf.pucks]
+    satellites = [Satellite(p, hear=hear, answer=answer, speak=speak, told=told)
+                  for p in conf.pucks]
     try:
         await asyncio.gather(*(s.keep() for s in satellites))
     finally:

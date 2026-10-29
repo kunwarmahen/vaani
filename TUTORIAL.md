@@ -111,6 +111,15 @@ Devices & services → ESPHome → the puck → ⋮ → Delete**. (Adding it bac
 later gives it back to Home Assistant; your backup isn't needed for
 that.)
 
+Deleting it there also wipes the puck's key, so the key you took from
+the backup stops working. You don't have to do anything about it: the
+first time Vaani reaches the puck, it gives it a brand-new key and
+keeps it in the same key file. The log says so once:
+
+```
+kitchen: it had no key (let go by Home Assistant?); gave it a new one, kept in …/kitchen.key
+```
+
 Open the port the puck fetches answers from:
 
 ```
@@ -146,6 +155,7 @@ The whole answer is also in Dvara's record of what each message did
 | You see or hear | Why | What to do |
 |---|---|---|
 | The ring lights, then nothing, and the log says nothing | Home Assistant still holds the puck | Step 5 |
+| `vaani status` says *not listening: …* (Sarathi's Check: *the kitchen puck isn't listening*) | Vaani is running but can't hold the puck; the reason is on the line | the reason says which: the address, the key, or Home Assistant |
 | *"Sorry, I couldn't reach your agent just now."* | Dvara isn't running, or the token is wrong | `vaani ask "hi"` says which |
 | *"Sorry, I couldn't make out any words."* | Whisper heard nothing, or isn't running | `vaani hear q.wav` |
 | The ring finishes but no sound | The puck can't reach port 8799 | the `ufw` line in Step 5; `[serve] address` if this computer has several |

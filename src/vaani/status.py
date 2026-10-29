@@ -84,12 +84,17 @@ def report() -> dict[str, Any]:
     out["serving"] = running is not None
     if running:
         out["answers_at"] = running.get("answers_at")
+    problems = (running or {}).get("problems") or {}
     for puck in conf.pucks:
         key = Path(puck.key_file).expanduser()
-        out["pucks"].append({"name": puck.name, "host": puck.host, "person": puck.person,
-                             "agent": puck.agent or conf.agent,
-                             "key": "readable" if key.is_file() and os.access(key, os.R_OK)
-                             else "missing"})
+        row = {"name": puck.name, "host": puck.host, "person": puck.person,
+               "agent": puck.agent or conf.agent,
+               "key": "readable" if key.is_file() and os.access(key, os.R_OK) else "missing"}
+        if running:                    # held by the serve, or why not
+            row["listening"] = problems.get(puck.name) == ""
+            if problems.get(puck.name):
+                row["problem"] = problems[puck.name]
+        out["pucks"].append(row)
     return out
 
 

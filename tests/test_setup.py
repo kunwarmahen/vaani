@@ -3,8 +3,9 @@
 The puck's key opens its microphone. The failures here are the ones that
 give it away or lose it without a word: a key file others can read, a
 misspelt setting that makes a puck answer as nobody, a backup read that
-picks the wrong 32 bytes, and an answer's address that serves anything
-but the answer it was made for.
+picks the wrong 32 bytes, an answer's address that serves anything
+but the answer it was made for, a puck let go by Home Assistant left
+unencrypted, and "running" said where the puck isn't listening.
 """
 
 from __future__ import annotations
@@ -150,6 +151,49 @@ def test_status_names_a_key_file_and_never_reads_it_out(tmp_path, monkeypatch):
     held = status.hold()
     try:
         assert status.report()["serving"] is True and status.hold() is None
+        (tmp_path / "state" / "serve.json").write_text(json.dumps(
+            {"problems": {"kitchen": "The device is using plaintext protocol"}}))
+        puck = status.report()["pucks"][0]
+        assert puck["listening"] is False and "plaintext" in puck["problem"]
+        (tmp_path / "state" / "serve.json").write_text(json.dumps({"problems": {"kitchen": ""}}))
+        well = status.report()["pucks"][0]
+        assert well["listening"] is True and "problem" not in well
     finally:
         held.close()
     assert status.keeps()["keeps"][0]["path"] == str(tmp_path.resolve())
+
+
+def test_a_puck_with_no_key_is_given_a_new_one_kept_first(tmp_path, monkeypatch):
+    import asyncio
+
+    from aioesphomeapi import ZERO_NOISE_PSK, EncryptionPlaintextAPIError
+
+    from vaani import satellite
+    from vaani.config import Puck
+    key = tmp_path / "kitchen.key"
+    key.write_text("b2xkIGtleSBIb21lIEFzc2lzdGFudCBzdGlsbCBoYXM=\n")
+    given: list[tuple[bytes, str]] = []
+
+    class PlainPuck:                   # as Home Assistant leaves it: no key, no zero key
+        def __init__(self, *_a, noise_psk=None, **_k):
+            self.psk = noise_psk
+
+        async def connect(self, **_k):
+            if self.psk == ZERO_NOISE_PSK:
+                raise EncryptionPlaintextAPIError("plaintext")
+
+        async def noise_encryption_set_key(self, new):
+            given.append((new, key.read_text()))      # the file was written first
+            return True
+
+        async def disconnect(self):
+            pass
+
+    monkeypatch.setattr(satellite, "APIClient", PlainPuck)
+    monkeypatch.setattr(satellite.asyncio, "sleep", lambda _s, nap=asyncio.sleep: nap(0))
+    sat = satellite.Satellite(Puck("kitchen", "192.168.1.55", str(key), "owner"),
+                              hear=None, answer=None, speak=None)
+    asyncio.run(sat._give_key())
+    (new, kept), = given
+    assert len(base64.b64decode(new)) == 32 and kept.strip() == new.decode()
+    assert "b2xk" not in kept and key.stat().st_mode & 0o777 == 0o600

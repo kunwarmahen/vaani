@@ -117,10 +117,13 @@ def main(argv: list[str] | None = None) -> int:
             elif args.command == "keeps":
                 print("\n".join(f"{k['path']}  {k['what']}" for k in got["keeps"]))
             else:
-                print(f"vaani {got['version']}: {'listening' if got['serving'] else 'not running'}"
+                print(f"vaani {got['version']}: {'running' if got['serving'] else 'not running'}"
                       + (f" ({got['problem']})" if got.get("problem") else ""))
                 for p in got["pucks"]:
-                    print(f"  {p['name']:<10} {p['host']:<15} as {p['person']}, key {p['key']}")
+                    held = ("" if "listening" not in p else ", listening" if p["listening"]
+                            else f", not listening: {p.get('problem', '')}")
+                    print(f"  {p['name']:<10} {p['host']:<15} as {p['person']}, "
+                          f"key {p['key']}{held}")
             return 0
         if args.command == "voices":
             return _voices(args)
