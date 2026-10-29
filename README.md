@@ -97,6 +97,15 @@ Assistant holds it, Vaani is ignored. Then:
 vaani serve
 ```
 
+**A yes at the puck, and long turns.** While the agent works, Vaani
+looks for its questions on the puck's conversation (Dvara's `GET
+/asks`) and puts each to the person: *"Your agent wants to open
+google.com. Shall I go ahead?"*. Their clear yes or no goes back
+(`POST /asks/ID`); Telegram has it too, and the first answer counts.
+After a minute the puck says it's still working; the answer, and any
+question on the way, come later as announcements (the puck listens
+after a question).
+
 **The wake word** is the puck's own (Okay Nabu, Hey Jarvis, Hey
 Mycroft); `wake_word = "hey_jarvis"` on a puck, or `vaani puck kitchen
 --wake-word hey_jarvis`, switches it, within a minute and again on every
@@ -214,6 +223,7 @@ src/vaani/
 ├── asking.py     whose question it is, or a sample for a print made at the puck
 ├── clips.py      answers kept a few minutes, served by name to the puck
 ├── flac.py       an answer as the puck plays it: FLAC, 48 kHz, no library
+├── waiting.py    a turn that asks or takes long: the question put, the answer said later
 ├── runs.py       the last fifty questions, step by step, for `vaani runs`
 ├── page.py       its own page (8797): pucks, questions, voices; a key, always
 ├── static/       the page itself
@@ -228,7 +238,7 @@ src/vaani/
 ## Tests
 
 ```
-uv run pytest -q        # 36 passed
+uv run pytest -q        # 40 passed
 ```
 
 ## License

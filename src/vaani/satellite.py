@@ -63,6 +63,8 @@ RETRY = 5.0
 #: without a wake word is taken as the reply: long enough for the answer
 #: to be played first.
 FOLLOW_WITHIN = 120.0
+#: The longest an announcement may take to be played.
+ANNOUNCE_WITHIN = 120.0
 
 
 class Satellite:
@@ -180,6 +182,24 @@ class Satellite:
         self.wakes = {"offers": list(offers.values()),
                       "on": [offers.get(i, i) for i in on]}
         self.noted()
+
+    async def announce(self, url: str, words: str, *, listen_for: str = "") -> bool:
+        """``url`` played by the puck, not as an answer to anything: what a
+        long turn came to. ``listen_for``: a person, when the words ask
+        them something -- the puck listens afterwards, no wake word, and
+        that run is their reply. False when the puck can't be reached."""
+        client = self.client
+        if client is None or not self.connected.is_set():
+            return False
+        if listen_for:
+            self.following = (listen_for, time.monotonic())
+        try:
+            await client.send_voice_assistant_announcement_await_response(
+                url, ANNOUNCE_WITHIN, text=words, start_conversation=bool(listen_for))
+        except (APIConnectionError, OSError, TimeoutError) as exc:
+            log.warning("%s: couldn't say it: %s", self.puck.name, exc)
+            return False
+        return True
 
     async def _start(self, conversation_id: str, flags: int,
                      audio: VoiceAssistantAudioSettings, wake_word: str | None) -> int | None:

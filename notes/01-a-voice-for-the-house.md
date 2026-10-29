@@ -201,10 +201,14 @@ played.
 * ~~**Who is speaking.**~~ A voice print per person, made at the puck,
   matched here; unsure is the puck's own person, said so
   ([02](02-whose-question.md)).
-* **A yes at the puck, with a PIN.** A turn that needs a yes waits for
-  it on the person's phone today. Planned: the puck reads the question,
-  the same voice answers yes or no, and money or anything sent outside
-  the house also needs the person's spoken PIN.
+* ~~**A yes at the puck**~~ (`waiting.py`): met when "find me a flight"
+  stopped on a browser's yes, Vaani waited 300 s for a phone nobody
+  looked at, and said it couldn't reach the agent while the turn
+  carried on. Now the question is put at the puck and answered there or
+  on the phone, and a turn longer than a minute is finished by
+  announcement. **Still to come: the PIN** for money or anything sent
+  outside the house, and checking the yes comes in the asker's voice
+  (today: any voice in the reply run).
 * ~~**A follow-up without the wake word.**~~ An answer whose last
   sentence is a question ends its intent with `continue_conversation:
   "1"`; the puck says it, then starts a run with no wake word. Within

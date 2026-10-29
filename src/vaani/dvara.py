@@ -17,10 +17,13 @@ from __future__ import annotations
 
 import json
 import urllib.error
+import urllib.parse
 import urllib.request
 
-#: How long a turn may take: a tool that reads mail, then a model.
-TIMEOUT = 300.0
+#: How long a turn may take: a tool that reads mail, a question to the
+#: person, a model. The puck doesn't wait this long (waiting.LONG): it
+#: says it's still working, and says the answer when it comes.
+TIMEOUT = 1800.0
 KIND = "vaani"
 
 
@@ -35,10 +38,34 @@ def thread(puck: str) -> str:
 def ask(text: str, *, person: str, agent: str, puck: str, url: str, token: str,
         timeout: float = TIMEOUT) -> dict:
     """The answer, as Dvara gives it: ``text`` and ``ok`` at least."""
-    body = json.dumps({"actor": person, "agent": agent, "thread": thread(puck),
-                       "text": text, "came_by": KIND}).encode()
-    request = urllib.request.Request(f"{url.rstrip('/')}/message", body, {
-        "Content-Type": "application/json", "Authorization": f"Bearer {token}"})
+    return _call(url, token, "/message", {"actor": person, "agent": agent,
+                                          "thread": thread(puck), "text": text,
+                                          "came_by": KIND}, timeout)
+
+
+def asks(person: str, *, url: str, token: str) -> list[dict]:
+    """The questions waiting on ``person`` (each with its ``thread``)."""
+    return _call(url, token, f"/asks?actor={urllib.parse.quote(person)}", None,
+                 10.0).get("asks", [])
+
+
+def answer(ask_id: str, approve: bool, *, person: str, url: str, token: str) -> bool:
+    """A waiting question answered as ``person``; False when it no longer
+    waits (answered on the phone, timed out, the turn gone)."""
+    try:
+        _call(url, token, f"/asks/{urllib.parse.quote(ask_id)}",
+              {"actor": person, "approve": approve is True}, 10.0)
+    except DvaraError as exc:
+        if "no question with that id" in str(exc):
+            return False
+        raise
+    return True
+
+
+def _call(url: str, token: str, path: str, body: dict | None, timeout: float) -> dict:
+    request = urllib.request.Request(
+        f"{url.rstrip('/')}{path}", json.dumps(body).encode() if body is not None else None,
+        {"Content-Type": "application/json", "Authorization": f"Bearer {token}"})
     try:
         with urllib.request.urlopen(request, timeout=timeout) as answer:
             return json.loads(answer.read())

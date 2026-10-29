@@ -292,6 +292,7 @@ function drawRuns(runs) {
     const fresh = Date.now() / 1000 - (r.at || 0) - spent < 20;
     const reply = r.woke_by === "a reply";
     if (reply) step("listening again", true, "for the reply, no wake word");
+    else if (r.woke_by === "said by itself") step("said by itself", true, "a long turn's end");
     else step("woken", true, r.woke_by ? `by ${r.woke_by}` : "");
     // no reply to a question back is fine: the person just didn't answer it
     if (r.ended === "silence" || r.ended === "stopped") step(reply ? "no reply" : "nothing said", reply);

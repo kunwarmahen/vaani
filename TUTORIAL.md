@@ -160,6 +160,19 @@ it heard and what it answered:
 The whole answer is also in Dvara's record of what each message did
 (`dvara runs`), marked as come by *vaani*.
 
+**When your agent needs your yes.** Some things an agent does need
+your say-so first: opening a browser, sending something, spending. At
+the puck, it asks you: *"Your agent wants to open google.com. Shall I go
+ahead?"*, then listens. Say *"yes"* or *"no"* (*"go ahead"*, *"sure"*,
+*"don't"* work too). Anything else gets *"was that a yes or a no?"*
+once. The same question is on your phone as well, and whichever you
+answer first counts.
+
+**When it takes a while.** After a minute the puck says *"This is
+taking a while. I'll tell you here when it's done."* and the ring stops.
+When the answer is ready, the puck says it by itself. If the agent
+needs your yes in the meantime, the puck asks then, and listens.
+
 **The wake word.** The puck knows three: *Okay Nabu*, *Hey Jarvis* and
 *Hey Mycroft*, and listens for one. Choose it with `uv run vaani puck
 kitchen --wake-word hey_jarvis` (or with Sarathi in **Settings → Vaani**):
