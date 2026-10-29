@@ -75,7 +75,12 @@ the subscriber, it lists all three and which is on (this one said Okay
 Nabu *and* Hey Jarvis, with one allowed). So the puck's `wake_word` is
 applied on Vaani's own connection, right after subscribing, and again
 within a minute of the setting changing. The puck logs
-`Enabled wake word: Hey Jarvis`.
+`Enabled wake word: Hey Jarvis`. But on this puck it never woke to it:
+switched live, after a power cycle, after two re-subscribes (which stop
+and start its listener) -- the puck's own log showed no detection at all
+through many clear tries, while Okay Nabu, switched back the same way,
+woke it at once. The setting works; this model, here, doesn't. The
+kitchen puck stays on Okay Nabu.
 
 **RUNNING IS NOT LISTENING.** The serve records, per puck, whether it is
 held and the last reason it isn't; `vaani status` and Sarathi's Check

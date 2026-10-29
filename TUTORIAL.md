@@ -180,7 +180,9 @@ the puck switches within a minute, and Vaani sets it again whenever it
 reconnects. Vaani's page says which one it's listening for. Something
 close to the wake word (*"OK Jarvis"*) can wake it on a *Very sensitive*
 puck; the log and the page then say the wake word the puck thought it
-heard.
+heard. On our puck (firmware 26.9.0) *Hey Jarvis* switched on but never
+woke it, however clearly it was said, while *Okay Nabu* works every time;
+if a word doesn't wake yours, switch back.
 
 **When it asks you something back**, you can just answer. If the
 answer ends with a question (*"…it's at 79. Want it set to a different
