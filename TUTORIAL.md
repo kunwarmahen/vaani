@@ -184,8 +184,12 @@ answer first counts.
   the page. Someone in the room can hear you say it, so pick one you
   don't use for your bank card. With no PIN set, those steps are asked
   on your phone. (A web search that types into a page after reading it
-  counts as one of these, so a flight search may ask for it a few
-  times.)
+  counts as one of these, so a flight search would ask for it a few
+  times. When the question is one of those, the puck adds *"Say yes to
+  all to stop asking for the rest of this."* Say *"yes to all, four,
+  seven, oh, nine"*, and the rest of that search's steps aren't asked,
+  unless your agent reads something new. A purchase still asks every
+  time.)
 
 **When it takes a while.** After a minute the puck says *"This is
 taking a while. I'll tell you here when it's done."* and the ring stops.

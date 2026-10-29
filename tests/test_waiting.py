@@ -13,7 +13,8 @@ from __future__ import annotations
 import asyncio
 
 from vaani import waiting
-from vaani.waiting import Waiting, outcome, spoken_question, yes_or_no
+from vaani.waiting import (BY_PIN, PLAIN, Waiting, for_the_task, outcome,
+                           spoken_question, yes_or_no)
 
 
 def test_only_a_clear_yes_is_a_yes():
@@ -108,3 +109,17 @@ def test_a_turn_still_going_is_shown_with_what_it_waits_on(monkeypatch):
     held.question, held.since = "find me a flight", 100.0
     assert held.shown() == {"person": "mahen", "question": "find me a flight",
                             "since": 100.0, "asking": "open a browser"}
+
+
+def test_yes_to_all_is_heard_and_a_plain_yes_is_not_it():
+    assert for_the_task("Yes to all, one two three four")
+    assert for_the_task("yes, the rest too")
+    assert not for_the_task("yes")
+    assert not for_the_task("yes please go ahead")
+
+
+def test_yes_to_all_is_offered_only_where_dvara_offers_it():
+    offered = spoken_question({"summary": "Fill e3", "for_turn": True}, BY_PIN)
+    assert "yes to all" in offered and offered.endswith("Shall I?")
+    assert "yes to all" not in spoken_question({"summary": "Fill e3"}, BY_PIN)
+    assert "yes to all" in spoken_question({"summary": "x", "for_turn": True}, PLAIN)

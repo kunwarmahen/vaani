@@ -122,7 +122,10 @@ it ("yes, go ahead": a plain "yes" is too short to tell), and a call no
 standing yes covers (Yantra's `always_ask`, which Dvara's /asks now
 says) needs the asker's spoken PIN: `vaani pin set NAME`, kept as a
 scrypt hash in `pins/`, two tries at a time, five wrong an hour locks
-it, never in the record or the log.
+it, never in the record or the log. Where Dvara offers it (a change asked
+only because the agent read something, its notes/72), the puck says so,
+and *"yes to all"* with the PIN covers the rest of that task's such
+questions (`waiting.for_the_task`).
 
 **The wake word** is the puck's own (Okay Nabu, Hey Jarvis, Hey
 Mycroft); `wake_word = "hey_jarvis"` on a puck, or `vaani puck kitchen
@@ -249,7 +252,8 @@ src/vaani/
 ├── clips.py      answers kept a few minutes, served by name to the puck
 ├── flac.py       an answer as the puck plays it: FLAC, 48 kHz, no library
 ├── pins.py       spoken PINs: kept as hashes, heard as digits, few tries
-├── waiting.py    a turn that asks or takes long: the question put, the answer said later
+├── waiting.py    a turn that asks or takes long: the question put, the answer said later,
+│                 "yes to all" for the rest of a task where Dvara offers it
 ├── runs.py       the last fifty questions, step by step, for `vaani runs`
 ├── page.py       its own page (8797): pucks, questions, voices; a key, always
 ├── static/       the page itself: Conversations (the runs read as a chat) and Setup (notes/03)

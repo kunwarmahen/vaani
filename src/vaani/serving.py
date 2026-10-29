@@ -28,6 +28,7 @@ from vaani.waiting import (
     LONG,
     PLAIN,
     Waiting,
+    for_the_task,
     judge,
     outcome,
     spoken_question,
@@ -229,17 +230,20 @@ async def serve(conf: Config) -> int:
         if came == "phone":
             return left_on_phone(puck, held, words)
         verdict = came == "yes"
+        # "yes to all": only where Dvara offered it, and only with a yes
+        to_all = verdict and bool(ask.get("for_turn")) and for_the_task(text)
         held.ask = None
         write()
         try:
             landed = await asyncio.to_thread(dvara.answer, ask["id"], verdict,
                                              person=held.person, url=conf.dvara_url,
-                                             token=token)
+                                             token=token, for_turn=to_all)
         except dvara.DvaraError as exc:
             log.warning("%s: couldn't give Dvara the answer: %s", puck.name, exc)
             landed = False
         log.info("%s: %s said %s at the puck%s", puck.name, held.person,
-                 "yes" if verdict else "no", "" if landed else " (already answered)")
+                 "yes to all" if to_all else "yes" if verdict else "no",
+                 "" if landed else " (already answered)")
         before = "" if verdict else "Okay, I won't. "
         got = await follow(puck, held)
         return f"{before}{words_of(held, got)}".strip()

@@ -49,12 +49,15 @@ def asks(person: str, *, url: str, token: str) -> list[dict]:
                  10.0).get("asks", [])
 
 
-def answer(ask_id: str, approve: bool, *, person: str, url: str, token: str) -> bool:
+def answer(ask_id: str, approve: bool, *, person: str, url: str, token: str,
+           for_turn: bool = False) -> bool:
     """A waiting question answered as ``person``; False when it no longer
-    waits (answered on the phone, timed out, the turn gone)."""
+    waits (answered on the phone, timed out, the turn gone). ``for_turn``:
+    the yes covers the rest of this task's after-reading questions."""
     try:
         _call(url, token, f"/asks/{urllib.parse.quote(ask_id)}",
-              {"actor": person, "approve": approve is True}, 10.0)
+              {"actor": person, "approve": approve is True,
+               "for_turn": approve is True and for_turn}, 10.0)
     except DvaraError as exc:
         if "no question with that id" in str(exc):
             return False

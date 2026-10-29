@@ -46,6 +46,18 @@ NO = re.compile(r"^(?:no|nope|nah|don'?t|do not|stop|cancel|never ?mind|deny|"
                 r"no thanks|not now)\b")
 
 
+#: "Yes to all": the rest of this task's questions too, where Dvara offers
+#: it (a question asked only because the agent read something you didn't
+#: write). Said with the yes, or with the PIN.
+ALL = re.compile(r"\b(?:to all|for all|all of (?:it|them)|the rest|everything)\b")
+
+
+def for_the_task(text: str) -> bool:
+    """The reply asked for the rest of this task too: "yes to all"."""
+    words = re.sub(r"[^\w' ]", " ", text.lower()).split()
+    return bool(ALL.search(" ".join(words)))
+
+
 def yes_or_no(text: str) -> bool | None:
     """True for a clear yes, False for a clear no, None otherwise."""
     words = re.sub(r"[^\w' ]", " ", text.lower()).split()
@@ -62,6 +74,8 @@ def yes_or_no(text: str) -> bool | None:
 PLAIN = "Shall I go ahead?"
 BY_VOICE = "To say yes, say: yes, go ahead. Shall I?"
 BY_PIN = "That needs your PIN, said one digit at a time. Shall I?"
+#: Added before the end of a question Dvara lets one yes cover the rest of.
+TO_ALL = "Say yes to all to stop asking for the rest of this."
 
 
 def spoken_question(ask: dict, how: str = PLAIN) -> str:
@@ -76,6 +90,10 @@ def spoken_question(ask: dict, how: str = PLAIN) -> str:
                      flags=re.I)
     summary = re.sub(r"\be\d+\b", "something on the page", summary)
     summary = summary.strip().rstrip(".")
+    if ask.get("for_turn") and how:
+        # before the question it ends on, which keeps the puck listening
+        head, sep, last = how.rpartition(". ")
+        how = f"{head}. {TO_ALL} {last}" if sep else f"{TO_ALL} {how}"
     return f"Your agent wants to {summary[:1].lower()}{summary[1:]}. {how}"
 
 

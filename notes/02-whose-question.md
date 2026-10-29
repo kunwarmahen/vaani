@@ -102,6 +102,10 @@ the real puck.
 * ~~**The conversations, not only the steps.**~~ Vaani's page reads the
   runs as one conversation per puck per person
   ([notes/03](03-the-conversations-on-the-page.md)).
+* ~~**A PIN for every step of one job.**~~ A question asked only
+  because the agent read something offers *"yes to all"*: said with the
+  PIN once, it covers the rest of that task until something new is read
+  (Dvara's notes/72, `waiting.for_the_task`).
 * **An agent per person.** A puck has one `agent`, which each of its
   people must be allowed in Dvara.
 * **One enrolled person and a stranger.** With a single print, "closer
