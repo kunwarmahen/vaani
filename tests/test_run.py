@@ -161,3 +161,35 @@ def test_only_the_whole_of_what_was_said_starts_over():
     for said in ("Tell me about the new conversation with Ravi", "start the dishwasher",
                  "what's new"):
         assert not starts_over(said), said
+
+
+def test_a_run_is_on_record_from_the_wake_word_and_a_cut_off_one_says_so(tmp_path,
+                                                                          monkeypatch):
+    from vaani import runs
+    from vaani.run import Said
+    monkeypatch.setenv("VAANI_STATE", str(tmp_path))
+    book = runs.Book()
+    said = Said()
+    rid = book.add({"puck": "kitchen", "live": True})
+    assert runs.read()[0]["live"] is True                  # on the page while it runs
+    said.heard, said.person = "what day is it", "mahen"
+    book.update(rid, {"heard": said.heard, "person": said.person, "live": True})
+    assert runs.read()[0]["heard"] == "what day is it"
+    again = runs.Book()                                    # the serve started again
+    assert again._runs[-1]["ended"] == "interrupted" and "live" not in again._runs[-1]
+
+
+def test_a_quiet_conversation_is_started_over_once(tmp_path, monkeypatch):
+    from vaani import runs
+    monkeypatch.setenv("VAANI_STATE", str(tmp_path))
+    book = runs.Book()
+    book.add({"puck": "kitchen", "person": "mahen", "heard": "what day"})
+    book.add({"puck": "kitchen", "person": "asha", "heard": "any mail", "live": True})
+    book.add({"puck": "study", "person": "mahen", "heard": "hi"})
+    assert set(book.quiet("kitchen")) == {"mahen"}         # asha is mid-question
+    book.started_over("kitchen", "mahen")
+    assert book.quiet("kitchen") == {}
+    # a restart remembers mahen's start-over; asha's cut-off question is quiet now
+    assert set(runs.Book().quiet("kitchen")) == {"asha"}
+    book.add({"puck": "kitchen", "person": "mahen", "heard": "and now?"})
+    assert set(book.quiet("kitchen")) == {"mahen"}         # a new question, a new clock

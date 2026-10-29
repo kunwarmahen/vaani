@@ -100,13 +100,16 @@ vaani serve
 **Talking back, starting over.** An answer that ends with a question
 keeps the puck listening, no wake word: the reply is the same person's,
 in the same conversation. *"New conversation"* or *"start over"* starts
-the puck's conversation with that person afresh (Dvara's `/new`).
+the puck's conversation with that person afresh (Dvara's `/new`), and
+so does a quiet spell: `fresh_after` minutes (30; 0 for never) with no
+question from them there, done in the background so the next question
+doesn't wait.
 
 **Its page.** `vaani serve` also serves a page of its own on
 127.0.0.1:8797 (`vaani page` prints its address with its key; with
 Sarathi, its card under Your pages): each puck listening or why not,
-the last questions step by step (woken, heard, whose, each step's time,
-played or never fetched), and the voices, learned and forgotten there.
+the last questions step by step, live from the wake word (woken,
+heard, whose, each step's time, played or never fetched), and the voices, learned and forgotten there.
 `vaani runs` lists the same questions in a terminal.
 
 **Several people at one puck.** List them on the puck (`vaani puck
@@ -165,6 +168,7 @@ key_file = "~/.config/vaani/kitchen.key"     # chmod 600, or Vaani refuses it
 person = "mahen"                             # from Dvara's actors file; unsure: this one
 agent = "minder"                             # an agent every one of its people may use
 # people = ["mahen", "asha"]                 # voices it tells apart
+fresh_after = 30              # minutes quiet, then a new conversation (0: never)
 
 # [voices]
 # threshold = 0.6                            # this close to a print to be that person
@@ -217,7 +221,7 @@ src/vaani/
 ## Tests
 
 ```
-uv run pytest -q        # 32 passed
+uv run pytest -q        # 35 passed
 ```
 
 ## License

@@ -68,6 +68,15 @@ class Said:
     follows: str = ""
     #: this answer asked something back: the puck listens again, no wake word
     asked_back: bool = False
+    #: called as each step ends, so a record can follow the run live
+    changed: Callable[[], None] = field(default=lambda: None, repr=False, compare=False)
+    record_id: str = ""
+
+    def tell(self) -> None:
+        try:
+            self.changed()
+        except Exception as exc:              # noqa: BLE001 -- a record never stops a run
+            log.warning("couldn't record a step: %s", exc)
 
 
 def asks_back(words: str) -> bool:
@@ -102,6 +111,7 @@ class Run:
         try:
             ended = await self._until_quiet()
             self.said.ended = ended
+            self.said.tell()
             self.send(Ev.VOICE_ASSISTANT_STT_VAD_END, {})
             if ended in ("silence", "stopped"):
                 return self._fail("stt-no-text-recognized", "nothing was said")
@@ -114,6 +124,7 @@ class Run:
                                               COULDNT_HEAR)
             self.said.heard = heard
             self._took("hear", began)
+            self.said.tell()
             if not heard:
                 self.send(Ev.VOICE_ASSISTANT_STT_END, {"text": ""})
                 return await self._say_failed("stt-no-text-recognized", None, COULDNT_HEAR)
@@ -130,6 +141,7 @@ class Run:
             # an answer that ends with a question is answered without the wake
             # word: the puck listens again once it has said it
             self.said.asked_back = asks_back(aloud(said))
+            self.said.tell()
             self.send(Ev.VOICE_ASSISTANT_INTENT_END,
                       {"continue_conversation": "1" if self.said.asked_back else "0"})
             await self._speak(said)
@@ -157,6 +169,7 @@ class Run:
         self._took("speak", began)
         self.said.url = url
         self.send(Ev.VOICE_ASSISTANT_TTS_END, {"url": url})
+        self.said.tell()
 
     def _took(self, step: str, began: float) -> None:
         self.said.took[step] = round(time.monotonic() - began, 1)

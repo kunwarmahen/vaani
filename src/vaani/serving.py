@@ -12,6 +12,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 
 from vaani import asking, dvara, flac, hearing, runs, speaking, status
 from vaani import config as settings
@@ -23,6 +24,9 @@ from vaani.satellite import Satellite
 from vaani.voices import Prints
 
 log = logging.getLogger("vaani")
+
+#: How often the pucks' quiet conversations are looked at.
+FRESHEN_EVERY = 60.0
 
 
 async def serve(conf: Config) -> int:
@@ -85,6 +89,7 @@ async def serve(conf: Config) -> int:
         asked = await asyncio.to_thread(asking.whose, now, puck, text, wav, prints,
                                         said.follows)
         said.person, said.how = asked.person, asked.how
+        said.tell()                    # whose it is, on the page before the answer
         if asked.sample:
             return asked.sample
         new = asking.starts_over(asked.text)
@@ -101,15 +106,55 @@ async def serve(conf: Config) -> int:
                                       port=conf.speak_port, voice=conf.voice)
         return clips.add(await asyncio.to_thread(flac.from_wav, wav))
 
-    def done(puck: str, woke: str, said: Said) -> None:
-        book.add({"puck": puck, "woke_by": woke, "ended": said.ended, "heard": said.heard,
-                  "person": said.person, "how": said.how, "answer": said.answer,
-                  "url": said.url, "error": said.error, "took": said.took})
+    def record(puck: str, woke: str, said: Said, live: bool) -> dict:
+        return {"puck": puck, "woke_by": woke, "ended": said.ended, "heard": said.heard,
+                "person": said.person, "how": said.how, "answer": said.answer,
+                "url": said.url, "error": said.error, "took": dict(said.took),
+                "live": live}
 
-    satellites = [Satellite(p, hear=hear, answer=answer, speak=speak, told=told, done=done)
-                  for p in conf.pucks]
+    def begun(puck: str, woke: str, said: Said) -> None:
+        # the record is made at the wake word and followed step by step
+        rid = book.add(record(puck, woke, said, True))
+        said.changed = lambda: book.update(rid, record(puck, woke, said, True))
+        said.record_id = rid
+
+    def done(puck: str, woke: str, said: Said) -> None:
+        if said.record_id:
+            book.update(said.record_id, record(puck, woke, said, False))
+        else:
+            book.add(record(puck, woke, said, False))
+
+    async def freshen() -> None:
+        """Each person's conversation at a puck starts over by itself after
+        its ``fresh_after`` minutes of quiet: done here, in the quiet, so
+        the next question doesn't wait for it."""
+        while True:
+            await asyncio.sleep(FRESHEN_EVERY)
+            for puck in conf.pucks:
+                now, current = fresh(puck)
+                if not current.fresh_after:
+                    continue
+                for person, at in book.quiet(current.name).items():
+                    if time.time() - at < current.fresh_after * 60:
+                        continue
+                    try:
+                        got = await asyncio.to_thread(
+                            dvara.ask, "/new", person=person,
+                            agent=current.agent or now.agent, puck=current.name,
+                            url=conf.dvara_url, token=token)
+                    except dvara.DvaraError as exc:
+                        log.warning("%s: couldn't start %s's conversation over: %s",
+                                    current.name, person, exc)
+                        continue
+                    if got.get("stop_reason") == "new":
+                        book.started_over(current.name, person)
+                        log.info("%s: %s's conversation started over after %d min quiet",
+                                 current.name, person, current.fresh_after)
+
+    satellites = [Satellite(p, hear=hear, answer=answer, speak=speak, told=told, done=done,
+                            begun=begun) for p in conf.pucks]
     try:
-        await asyncio.gather(*(s.keep() for s in satellites))
+        await asyncio.gather(freshen(), *(s.keep() for s in satellites))
     finally:
         clips.close()
         if page is not None:

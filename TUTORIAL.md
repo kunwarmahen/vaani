@@ -169,7 +169,11 @@ seconds.
 **To start a new conversation**, say the wake word, then *"new
 conversation"* (or *"start over"*, *"start fresh"*). The puck says
 *"Starting fresh. What would you like to ask?"* and listens for your
-question. Until then everything you ask at that puck is one
+question. It also starts over by itself after 30 minutes with no
+questions from you at that puck, so tomorrow's first question isn't
+read against today's talk. Change the 30 (or set 0 for never) with
+`uv run vaani puck kitchen --fresh-after 60`, or with Sarathi in
+**Settings → Vaani**. Until then everything you ask at that puck is one
 conversation, so *"and the one before?"* works. The old one isn't lost:
 it's in your conversations on Telegram or the home page (`/chats`). Only
 those words on their own start over: *"tell me about the new
@@ -212,7 +216,10 @@ signed in. The page shows:
   the firewall (Step 5).
 * **Voices**, with *Learn their voice* and *Forget* (Step 7).
 
-It looks again every few seconds, so you can ask at the puck and watch.
+A question shows up the moment the puck wakes, and fills in as each
+step ends: *listening… → hearing… → agent working… → speaking… → puck
+fetching… → played*. The page checks every second while a question is
+going and every few seconds otherwise.
 In a terminal, `uv run vaani runs` lists the same questions, one line
 each.
 

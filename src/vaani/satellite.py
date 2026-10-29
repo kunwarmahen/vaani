@@ -63,9 +63,10 @@ class Satellite:
                  answer: Callable[[Puck, str, bytes], Awaitable[str]],
                  speak: Callable[[str], Awaitable[str]],
                  told: Callable[[str, str], None] = lambda _name, _problem: None,
-                 done: Callable[[str, str, Said], None] = lambda _p, _w, _s: None) -> None:
+                 done: Callable[[str, str, Said], None] = lambda _p, _w, _s: None,
+                 begun: Callable[[str, str, Said], None] = lambda _p, _w, _s: None) -> None:
         self.puck = puck
-        self.told, self.done = told, done
+        self.told, self.done, self.begun = told, done, begun
         self.hear, self.answer, self.speak = hear, answer, speak
         self.client: APIClient | None = None
         self.run: Run | None = None
@@ -151,14 +152,16 @@ class Satellite:
         if not wake_word and following and time.monotonic() - following[1] < FOLLOW_WITHIN:
             run.said.follows = following[0]
         self.run = run
+        woke = wake_word or ("a reply" if run.said.follows else "")
         log.info("%s: %s", self.puck.name, f"listening again for {run.said.follows}'s reply"
                  if run.said.follows else f"woken{f' by {wake_word!r}' if wake_word else ''}")
+        self.begun(self.puck.name, woke, run.said)
 
         async def go() -> None:
             said = await run.go()
             if said.asked_back and said.person:
                 self.following = (said.person, time.monotonic())
-            self.done(self.puck.name, wake_word or ("a reply" if said.follows else ""), said)
+            self.done(self.puck.name, woke, said)
             log.info("%s: %s -- heard %r, answered %r%s", self.puck.name, said.ended,
                      said.heard, said.answer[:80], f" ({said.error})" if said.error else "")
             if self.run is run:

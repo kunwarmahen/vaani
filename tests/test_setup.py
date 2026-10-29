@@ -231,3 +231,14 @@ def test_a_puck_is_changed_in_place_and_a_bad_change_writes_nothing():
         with_puck(text, "study", {"people": ["../x"]})
     with pytest.raises(ConfigError, match="no puck called attic"):
         with_puck(text, "attic", {"person": "x"})
+
+
+def test_a_quiet_spell_is_minutes_and_set_in_place():
+    from vaani.config import with_puck
+    text = GOOD.format(key="k")
+    assert parse(text).puck("kitchen").fresh_after == 30
+    after = with_puck(text, "kitchen", {"fresh_after": 0})
+    assert "fresh_after = 0\n" in after and parse(after).puck("kitchen").fresh_after == 0
+    for wrong in ('"30"', "-1", "true", "20000"):
+        with pytest.raises(ConfigError, match="fresh_after is minutes"):
+            parse(text + f"fresh_after = {wrong}\n")

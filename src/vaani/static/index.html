@@ -89,6 +89,11 @@ h2 { font-size: 19px; font-weight: 650; margin: 30px 0 10px; }
 .steps { display: flex; flex-wrap: wrap; gap: 4px 0; margin-top: 6px; font-size: 12.5px; }
 .step { padding: 1px 8px; border-radius: 999px; background: rgba(44, 122, 82, .1); color: var(--ok); }
 .step.bad { background: rgba(179, 38, 30, .12); color: var(--bad); font-weight: 600; }
+.step.now { background: var(--ring-soft); color: var(--ring); font-weight: 600;
+            animation: now 1.2s ease-in-out infinite; }
+@keyframes now { 50% { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .step.now { animation: none; } }
+.run.live { border-left: 3px solid var(--ring); padding-left: 10px; }
 .step small { color: var(--ink-3); font-size: 12px; }
 .arrow { color: var(--ink-3); padding: 1px 4px; }
 
@@ -272,14 +277,17 @@ function drawRuns(runs) {
   const list = document.getElementById("runs");
   if (!runs.length) {
     list.replaceChildren(h("li.empty", {}, "None yet. Say the wake word at a puck and ask " +
-      "something; it shows here when the run ends."));
+      "something; it shows here as it happens."));
     return;
   }
   list.replaceChildren(...runs.map((r) => {
     const took = r.took || {};
     const steps = [];
-    const step = (label, ok, small) => steps.push(h(`span.step${ok ? "" : ".bad"}`, {}, label,
-      small ? h("small", {}, ` ${small}`) : null));
+    const step = (label, ok, small, kind) => steps.push(h(`span.step${kind || (ok ? "" : ".bad")}`,
+      {}, label, small ? h("small", {}, ` ${small}`) : null));
+    // a run still going says the step it's on; a fetch comes just after the end
+    const spent = Object.values(took).reduce((a, b) => a + b, 0);
+    const fresh = Date.now() / 1000 - (r.at || 0) - spent < 20;
     const reply = r.woke_by === "a reply";
     if (reply) step("listening again", true, "for the reply, no wake word");
     else step("woken", true, r.woke_by ? `by ${r.woke_by}` : "");
@@ -290,10 +298,17 @@ function drawRuns(runs) {
     if (r.person) step(`as ${r.person}`, true, r.how || "");
     if (took.agent != null) step("agent", !!r.answer && !r.error, `${took.agent}s`);
     if (took.speak != null) step("spoken", true, `${took.speak}s`);
-    if (r.url) step(r.fetched ? "played" : "never fetched", !!r.fetched,
-                    r.fetched ? "" : "the puck didn't come for it");
+    if (r.live && !r.error) {
+      if (!r.ended) step("listening…", true, "", ".now");
+      else if (took.hear == null) step("hearing…", true, "", ".now");
+      else if (took.agent == null && r.heard) step("agent working…", true, "", ".now");
+      else if (took.speak == null && r.answer) step("speaking…", true, "", ".now");
+    }
+    if (r.url && !r.fetched && (r.live || fresh)) step("puck fetching…", true, "", ".now");
+    else if (r.url) step(r.fetched ? "played" : "never fetched", !!r.fetched,
+                         r.fetched ? "" : "the puck didn't come for it");
     const said = r.error && !r.answer ? r.error : r.answer;
-    return h("li.run", {},
+    return h(`li.run${r.live ? ".live" : ""}`, {},
       h("div.top", {}, h("span.puckname", {}, r.puck || "?"), h("span.when", {}, ago(r.at))),
       r.heard ? h("div.heard", {}, "“", r.heard, "”") : null,
       said ? h(`div.${r.error ? "error" : "answer"}`, {}, "→ ", said) : null,
@@ -339,12 +354,19 @@ async function act(what, body) {
   look();
 }
 
+// Every second while a question is going (so each step shows as it ends),
+// every few seconds otherwise: the state is one small file read.
+const LIVE_EVERY = 1000;
+let busy = false;
+
 async function look() {
   if (!token) { signedOut(); return; }
   try {
     const got = await api("/api/state");
     document.getElementById("main").hidden = false;
     document.getElementById("problem").hidden = true;
+    busy = (got.runs || []).some((r) => r.live || (r.url && !r.fetched &&
+      Date.now() / 1000 - (r.at || 0) < 120));
     drawState(got);
   } catch (err) {
     if (!token) return;
@@ -359,8 +381,11 @@ document.getElementById("learn").addEventListener("submit", (e) => {
   act("enroll", { person: document.getElementById("learn-who").value,
                   puck: document.getElementById("learn-at").value });
 });
-look();
-setInterval(() => { if (!document.hidden) look(); }, EVERY);
+async function tick() {
+  if (!document.hidden) await look();
+  setTimeout(tick, busy ? LIVE_EVERY : EVERY);
+}
+tick();
 document.addEventListener("visibilitychange", () => { if (!document.hidden) look(); });
 </script>
 </body>

@@ -51,7 +51,9 @@ it was taken to be and why, how long Whisper, the agent and Piper each
 took, the answer or the error, and -- added when it happens, after the
 run has ended -- whether the puck came for the answer. The last fifty, in
 the state folder (yours alone). `vaani runs` reads them, and so does
-Vaani's own page.
+Vaani's own page. The record is made at the wake word (`live`) and
+written again as each step ends, so the page shows a question while
+the agent is still on it; it asks every second only while one is live.
 
 **A PAGE OF ITS OWN, ON A PORT OF ITS OWN** (`page.py`). The running
 serve knows what no other program can -- each puck held or why not,
@@ -201,7 +203,12 @@ played.
   match, the same person, the same Dvara conversation -- and silence is
   just no reply. "New conversation" / "start over" (the whole of what
   was said, nothing else) sends Dvara `/new` and the puck asks what's
-  next, so it listens again too.
+  next, so it listens again too. And a quiet spell does it by itself:
+  `fresh_after` minutes (30; 0 for never) with no question from a person
+  at a puck, checked every minute in the background -- not when the next
+  question comes, which would make that question wait for Dvara's look
+  back. A start-over is marked on that person's newest record, so a
+  serve that starts again doesn't send it twice.
 * ~~**Sarathi**~~ starts Vaani with everything else (`[vaani] on`), and
   its Your pages has Vaani's own page (each run, the voices) and its
   Settings → Vaani the puck's people.

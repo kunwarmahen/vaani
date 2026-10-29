@@ -34,6 +34,7 @@ never a library pulled in here.
     person = "mahen"                         # who it answers as (when unsure)
     agent = "minder"
     people = ["mahen", "asha"]               # voices it may tell apart (optional)
+    fresh_after = 30                         # minutes quiet, then a new conversation (0: never)
 
     [voices]                                 # telling voices apart (optional)
     threshold = 0.6
@@ -74,6 +75,8 @@ ESPHOME_PORT = 6053
 SERVE_PORT = 8799
 #: Vaani's own page: each puck, its last questions, the voices.
 PAGE_PORT = 8797
+#: Minutes quiet before a puck's conversation starts over by itself.
+FRESH_AFTER = 30
 
 KNOWN = {
     "dvara": {"url", "token_file", "agent"},
@@ -81,7 +84,7 @@ KNOWN = {
     "speak": {"host", "port", "voice"},
     "serve": {"address", "host", "port"},
     "page": {"host", "port"},
-    "puck": {"name", "host", "port", "key_file", "person", "agent", "people"},
+    "puck": {"name", "host", "port", "key_file", "person", "agent", "people", "fresh_after"},
     "voices": {"threshold", "margin"},
 }
 
@@ -100,6 +103,9 @@ class Puck:
     port: int = ESPHOME_PORT
     #: The people this puck may tell apart by voice; ``person`` when unsure.
     people: tuple[str, ...] = ()
+    #: Minutes with no question, after which each person's conversation at
+    #: this puck starts over by itself (Dvara's /new); 0: never.
+    fresh_after: int = FRESH_AFTER
 
     def key(self) -> str:
         """The key, read when it's needed: a file only you can read."""
@@ -241,7 +247,9 @@ def parse(text: str, where: str = "vaani.toml") -> Config:
         pucks.append(Puck(name=name, host=str(row["host"]), key_file=str(row["key_file"]),
                           person=person, agent=str(row.get("agent", "")),
                           port=_port(row.get("port", ESPHOME_PORT), where),
-                          people=tuple(dict.fromkeys(people))))
+                          people=tuple(dict.fromkeys(people)),
+                          fresh_after=_minutes(row.get("fresh_after", FRESH_AFTER), where,
+                                               name)))
     base = Config()
     return Config(
         dvara_url=str(d.get("url", base.dvara_url)).rstrip("/"),
@@ -263,7 +271,7 @@ def parse(text: str, where: str = "vaani.toml") -> Config:
         pucks=tuple(pucks))
 
 
-def with_puck(text: str, name: str, changes: dict[str, str | list[str]]) -> str:
+def with_puck(text: str, name: str, changes: dict[str, str | int | list[str]]) -> str:
     """vaani.toml's ``text`` with one puck's ``person``, ``agent`` or
     ``people`` changed, every other line (and comment) as it was. The
     result is checked as the file it will be before it is handed back."""
@@ -281,10 +289,11 @@ def with_puck(text: str, name: str, changes: dict[str, str | list[str]]) -> str:
         raise ConfigError(f"no puck called {name} in vaani.toml")
     start, end = block
     for key, value in changes.items():
-        if key not in ("person", "agent", "people"):
+        if key not in ("person", "agent", "people", "fresh_after"):
             raise ConfigError(f"a puck's {key} isn't changed here")
         said = (f'{key} = [{", ".join(chr(34) + p + chr(34) for p in value)}]\n'
-                if isinstance(value, list) else f'{key} = "{value}"\n')
+                if isinstance(value, list) else f"{key} = {value}\n"
+                if isinstance(value, int) else f'{key} = "{value}"\n')
         found = next((i for i in range(start, end)
                       if re.match(rf"\s*{key}\s*=", lines[i])), None)
         if found is not None:
@@ -297,6 +306,13 @@ def with_puck(text: str, name: str, changes: dict[str, str | list[str]]) -> str:
     out = "".join(lines)
     parse(out)                         # refused here, never half-written
     return out
+
+
+def _minutes(value, where: str, puck: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 10080:
+        raise ConfigError(f"{where}: puck {puck}: fresh_after is minutes, 0 (never) to "
+                          f"10080 (a week), not {value!r}")
+    return value
 
 
 def _port(value, where: str) -> int:
