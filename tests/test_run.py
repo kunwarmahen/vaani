@@ -140,3 +140,24 @@ def test_a_run_says_how_long_each_step_took_and_the_record_shows_the_fetch(tmp_p
     newest, first = runs.read()
     assert newest["heard"] == "later" and first["fetched"]["by"] == "192.168.1.55"
     assert (tmp_path / runs.FILE).stat().st_mode & 0o777 == 0o600
+
+
+
+def test_an_answer_that_asks_back_keeps_the_puck_listening():
+    async def asks(text, _wav, _said):
+        return "Done. It's at 79. Want it set to a different temperature?"
+    said, events, _ = drive(QUIET * 10 + tone(1.0) + QUIET * 40, answer=asks)
+    assert said.asked_back and dict(events)["INTENT_END"] == {"continue_conversation": "1"}
+    said, events, _ = drive(QUIET * 10 + tone(1.0) + QUIET * 40)       # "Sunny, see ..."
+    assert not said.asked_back
+    assert dict(events)["INTENT_END"] == {"continue_conversation": "0"}
+
+
+def test_only_the_whole_of_what_was_said_starts_over():
+    from vaani.asking import starts_over
+    for said in ("New conversation.", "Start over", "let's start fresh, please",
+                 "Okay, start a new conversation", "start again"):
+        assert starts_over(said), said
+    for said in ("Tell me about the new conversation with Ravi", "start the dishwasher",
+                 "what's new"):
+        assert not starts_over(said), said

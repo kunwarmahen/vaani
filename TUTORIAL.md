@@ -159,6 +159,22 @@ it heard and what it answered:
 The whole answer is also in Dvara's record of what each message did
 (`dvara runs`), marked as come by *vaani*.
 
+**When it asks you something back**, you can just answer. If the
+answer ends with a question (*"…it's at 79. Want it set to a different
+temperature?"*), the puck lights up again once it has said it and
+listens, with no wake word. Say *"make it 75"* and it's answered as you,
+in the same conversation. Say nothing and the ring goes out after a few
+seconds.
+
+**To start a new conversation**, say the wake word, then *"new
+conversation"* (or *"start over"*, *"start fresh"*). The puck says
+*"Starting fresh. What would you like to ask?"* and listens for your
+question. Until then everything you ask at that puck is one
+conversation, so *"and the one before?"* works. The old one isn't lost:
+it's in your conversations on Telegram or the home page (`/chats`). Only
+those words on their own start over: *"tell me about the new
+conversation with Ravi"* is a question like any other.
+
 ## When something's off
 
 | You see or hear | Why | What to do |

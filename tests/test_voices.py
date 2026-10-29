@@ -105,3 +105,13 @@ def test_people_and_limits_are_checked(conf):
         parse(TOML.replace('["mahen", "asha"]', '["mahen", "../x"]'))
     with pytest.raises(ConfigError, match="voices.threshold"):
         parse(TOML + "\n[voices]\nthreshold = 3\n")
+
+
+
+def test_a_reply_without_the_wake_word_is_the_person_who_was_asked(conf):
+    prints = FakePrints(Match("asha", 0.95, 0.1))
+    got = asking.whose(conf, kitchen(conf), "make it 75", b"wav", prints, follows="mahen")
+    assert got.person == "mahen" and got.how == "replying to the puck"
+    # a follow-up never makes someone the puck doesn't serve the asker
+    got = asking.whose(conf, kitchen(conf), "make it 75", b"wav", prints, follows="ravi")
+    assert got.person == "asha"

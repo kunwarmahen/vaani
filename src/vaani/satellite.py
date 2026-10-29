@@ -33,6 +33,7 @@ import base64
 import logging
 import os
 import secrets
+import time
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
@@ -51,6 +52,10 @@ log = logging.getLogger("vaani")
 
 #: Seconds between tries when a puck can't be reached.
 RETRY = 5.0
+#: How long after an answer that asked something back the puck's run
+#: without a wake word is taken as the reply: long enough for the answer
+#: to be played first.
+FOLLOW_WITHIN = 120.0
 
 
 class Satellite:
@@ -66,6 +71,9 @@ class Satellite:
         self.run: Run | None = None
         self._job: asyncio.Task | None = None
         self.connected = asyncio.Event()
+        #: (person, when) after an answer that asked something back: the
+        #: puck's next run without a wake word is their reply
+        self.following: tuple[str, float] | None = None
 
     async def keep(self) -> None:
         """Connect, listen, and connect again, until cancelled."""
@@ -139,12 +147,18 @@ class Satellite:
         run = Run(send=self._send, hear=self.hear,
                   answer=lambda text, wav, said: self.answer(self.puck, text, wav, said),
                   speak=self.speak)
+        following, self.following = self.following, None
+        if not wake_word and following and time.monotonic() - following[1] < FOLLOW_WITHIN:
+            run.said.follows = following[0]
         self.run = run
-        log.info("%s: woken%s", self.puck.name, f" by {wake_word!r}" if wake_word else "")
+        log.info("%s: %s", self.puck.name, f"listening again for {run.said.follows}'s reply"
+                 if run.said.follows else f"woken{f' by {wake_word!r}' if wake_word else ''}")
 
         async def go() -> None:
             said = await run.go()
-            self.done(self.puck.name, wake_word or "", said)
+            if said.asked_back and said.person:
+                self.following = (said.person, time.monotonic())
+            self.done(self.puck.name, wake_word or ("a reply" if said.follows else ""), said)
             log.info("%s: %s -- heard %r, answered %r%s", self.puck.name, said.ended,
                      said.heard, said.answer[:80], f" ({said.error})" if said.error else "")
             if self.run is run:

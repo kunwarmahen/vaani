@@ -280,8 +280,11 @@ function drawRuns(runs) {
     const steps = [];
     const step = (label, ok, small) => steps.push(h(`span.step${ok ? "" : ".bad"}`, {}, label,
       small ? h("small", {}, ` ${small}`) : null));
-    step("woken", true, r.woke_by ? `by ${r.woke_by}` : "");
-    if (r.ended === "silence" || r.ended === "stopped") step("nothing said", false);
+    const reply = r.woke_by === "a reply";
+    if (reply) step("listening again", true, "for the reply, no wake word");
+    else step("woken", true, r.woke_by ? `by ${r.woke_by}` : "");
+    // no reply to a question back is fine: the person just didn't answer it
+    if (r.ended === "silence" || r.ended === "stopped") step(reply ? "no reply" : "nothing said", reply);
     if (r.heard || took.hear != null) step(r.heard ? "heard" : "heard nothing", !!r.heard,
                                            took.hear != null ? `${took.hear}s` : "");
     if (r.person) step(`as ${r.person}`, true, r.how || "");

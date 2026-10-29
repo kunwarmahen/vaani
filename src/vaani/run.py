@@ -64,6 +64,15 @@ class Said:
     how: str = ""
     #: seconds each step took: hear, agent, speak
     took: dict[str, float] = field(default_factory=dict)
+    #: whose answer asked something back, when this run is the reply to it
+    follows: str = ""
+    #: this answer asked something back: the puck listens again, no wake word
+    asked_back: bool = False
+
+
+def asks_back(words: str) -> bool:
+    """The answer's last sentence is a question: "Want it set lower?"."""
+    return words.rstrip().rstrip("\"'”’)").endswith("?")
 
 
 class Run:
@@ -118,7 +127,11 @@ class Run:
                 return await self._say_failed("intent-failed", exc, COULDNT_REACH)
             self._took("agent", began)
             self.said.answer = said
-            self.send(Ev.VOICE_ASSISTANT_INTENT_END, {"continue_conversation": "0"})
+            # an answer that ends with a question is answered without the wake
+            # word: the puck listens again once it has said it
+            self.said.asked_back = asks_back(aloud(said))
+            self.send(Ev.VOICE_ASSISTANT_INTENT_END,
+                      {"continue_conversation": "1" if self.said.asked_back else "0"})
             await self._speak(said)
             return self.said
         finally:

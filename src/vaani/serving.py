@@ -82,15 +82,19 @@ async def serve(conf: Config) -> int:
 
     async def answer(puck: Puck, text: str, wav: bytes, said: Said) -> str:
         now, puck = fresh(puck)
-        asked = await asyncio.to_thread(asking.whose, now, puck, text, wav, prints)
+        asked = await asyncio.to_thread(asking.whose, now, puck, text, wav, prints,
+                                        said.follows)
         said.person, said.how = asked.person, asked.how
         if asked.sample:
             return asked.sample
-        got = await asyncio.to_thread(dvara.ask, asked.text, person=asked.person,
-                                      agent=puck.agent or now.agent, puck=puck.name,
-                                      url=conf.dvara_url, token=token)
-        said = str(got.get("text") or "")
-        return f"{asked.before} {said}".strip()
+        new = asking.starts_over(asked.text)
+        got = await asyncio.to_thread(dvara.ask, "/new" if new else asked.text,
+                                      person=asked.person, agent=puck.agent or now.agent,
+                                      puck=puck.name, url=conf.dvara_url, token=token)
+        if new and got.get("stop_reason") == "new":
+            # Dvara's words are for a chat (/chats); the puck says it plainly
+            return f"{asked.before} {asking.STARTED_OVER}".strip()
+        return f"{asked.before} {got.get('text') or ''}".strip()
 
     async def speak(words: str) -> str:
         wav = await asyncio.to_thread(speaking.speak, words, host=conf.speak_host,

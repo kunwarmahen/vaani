@@ -194,7 +194,14 @@ played.
   it on the person's phone today. Planned: the puck reads the question,
   the same voice answers yes or no, and money or anything sent outside
   the house also needs the person's spoken PIN.
-* **A follow-up without the wake word** (`continue_conversation`).
+* ~~**A follow-up without the wake word.**~~ An answer whose last
+  sentence is a question ends its intent with `continue_conversation:
+  "1"`; the puck says it, then starts a run with no wake word. Within
+  two minutes such a run is the reply of whoever was asked -- no voice
+  match, the same person, the same Dvara conversation -- and silence is
+  just no reply. "New conversation" / "start over" (the whole of what
+  was said, nothing else) sends Dvara `/new` and the puck asks what's
+  next, so it listens again too.
 * ~~**Sarathi**~~ starts Vaani with everything else (`[vaani] on`), and
   its Your pages has Vaani's own page (each run, the voices) and its
   Settings → Vaani the puck's people.

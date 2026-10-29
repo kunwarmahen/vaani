@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -32,6 +33,21 @@ UNSURE = "I'm not sure who's asking, so I'm answering for {person}."
 SAMPLE_MORE = "Got it. {left} more: say the wake word, then any sentence."
 SAMPLE_DONE = "Thanks. I know {person}'s voice now."
 ENROLLING = "enrolling.json"
+STARTED_OVER = "Starting fresh. What would you like to ask?"
+
+#: The whole of what was said, give or take "please": a new conversation.
+#: Only the whole: "tell me about the new conversation with Ravi" is a question.
+NEW_WORDS = re.compile(
+    r"^(?:ok(?:ay)?,? )?(?:let'?s |please |can we |can you )?"
+    r"(?:start (?:a )?(?:new|fresh|over)(?: conversation| chat| topic)?"
+    r"|new (?:conversation|chat|topic)|fresh start|start again|forget (?:all )?that)"
+    r"(?:,? please)?$")
+
+
+def starts_over(text: str) -> bool:
+    """"New conversation", "start over", "let's start fresh, please"."""
+    words = re.sub(r"[^\w' ,]", "", text.lower()).strip(" ,")
+    return bool(NEW_WORDS.match(words))
 
 
 @dataclass
@@ -68,7 +84,12 @@ def _enrolling(puck: str) -> dict | None:
     return note if note and note.get("puck") == puck else None
 
 
-def whose(conf: Config, puck: Puck, text: str, wav: bytes, prints: Prints) -> Asked:
+def whose(conf: Config, puck: Puck, text: str, wav: bytes, prints: Prints,
+          follows: str = "") -> Asked:
+    """``follows``: the person whose answer asked something back, when this
+    is the puck listening again without its wake word -- their reply."""
+    if follows and (follows == puck.person or follows in puck.people):
+        return Asked(follows, text, how="replying to the puck")
     note = _enrolling(puck.name)
     if note is not None:
         count = prints.enroll(note["person"], [wav], add=not note.get("first"))

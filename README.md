@@ -97,6 +97,11 @@ Assistant holds it, Vaani is ignored. Then:
 vaani serve
 ```
 
+**Talking back, starting over.** An answer that ends with a question
+keeps the puck listening, no wake word: the reply is the same person's,
+in the same conversation. *"New conversation"* or *"start over"* starts
+the puck's conversation with that person afresh (Dvara's `/new`).
+
 **Its page.** `vaani serve` also serves a page of its own on
 127.0.0.1:8797 (`vaani page` prints its address with its key; with
 Sarathi, its card under Your pages): each puck listening or why not,
@@ -212,7 +217,7 @@ src/vaani/
 ## Tests
 
 ```
-uv run pytest -q        # 29 passed
+uv run pytest -q        # 32 passed
 ```
 
 ## License
