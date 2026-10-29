@@ -124,6 +124,11 @@ def test_a_harness_says_where_things_are_but_never_which_pucks(monkeypatch):
     got = from_env(conf)
     assert got.dvara_url == "http://sarathi-dvara:8770" and got.speak_port == 10201
     assert got.pucks == conf.pucks
+    monkeypatch.setenv("VAANI_LOCALHOST", "host.containers.internal")
+    inside = from_env(conf)
+    assert inside.hear_url == "http://host.containers.internal:11435"
+    assert inside.speak_host == "host.containers.internal"
+    assert inside.dvara_url == "http://sarathi-dvara:8770"       # named, so left alone
     monkeypatch.setenv("VAANI_PORT", "eighty")
     with pytest.raises(ConfigError, match="VAANI_PORT is a port number"):
         from_env(conf)

@@ -38,8 +38,11 @@ A HARNESS MAY SAY WHERE THINGS ARE. Sarathi starts Vaani beside Dvara,
 Whisper and Piper and knows their addresses better than this file can:
 ``VAANI_DVARA_URL``, ``VAANI_HEAR_URL``, ``VAANI_SPEAK_HOST``,
 ``VAANI_SPEAK_PORT``, ``VAANI_ADDRESS`` and ``VAANI_PORT`` win over the
-file's, and ``VAANI_DVARA_TOKEN`` over its token file. The pucks
-themselves are only ever the file's.
+file's, and ``VAANI_DVARA_TOKEN`` over its token file. In a container,
+``VAANI_LOCALHOST`` says what this computer is called from inside
+(``host.containers.internal``), and every 127.0.0.1 or localhost in
+the file is read as that. The pucks themselves are only ever the
+file's.
 
 UNKNOWN KEYS ARE ERRORS, as everywhere in this family: a misspelt
 ``persn`` must not quietly make a puck answer as nobody.
@@ -161,7 +164,14 @@ def from_env(conf: Config) -> Config:
                 changes[key] = _port(int(env[name]), name)
             except ValueError:
                 raise ConfigError(f"{name} is a port number, not {env[name]!r}") from None
-    return replace(conf, **changes) if changes else conf
+    conf = replace(conf, **changes) if changes else conf
+    inside = env.get("VAANI_LOCALHOST", "").strip()
+    if inside:
+        here = re.compile(r"(?<![\w.])(127\.0\.0\.1|localhost)(?![\w.])")
+        conf = replace(conf, dvara_url=here.sub(inside, conf.dvara_url),
+                       hear_url=here.sub(inside, conf.hear_url),
+                       speak_host=here.sub(inside, conf.speak_host))
+    return conf
 
 
 def parse(text: str, where: str = "vaani.toml") -> Config:

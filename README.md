@@ -129,7 +129,8 @@ agent = "minder"
 Unknown keys are errors. `VAANI_CONFIG` names another folder;
 `VAANI_DVARA_TOKEN` gives the token instead of the file. A harness (Sarathi)
 says where the rest are with `VAANI_DVARA_URL`, `VAANI_HEAR_URL`,
-`VAANI_SPEAK_HOST`, `VAANI_SPEAK_PORT`, `VAANI_ADDRESS` and `VAANI_PORT`;
+`VAANI_SPEAK_HOST`, `VAANI_SPEAK_PORT`, `VAANI_ADDRESS` and `VAANI_PORT`
+(`VAANI_LOCALHOST`: what 127.0.0.1 is called from inside a container);
 the pucks are only ever the file's. `vaani status --json` (`vaani.status.v1`)
 says whether it's listening and which pucks, never a key; `vaani keeps
 --json` names the settings folder for a backup. One `vaani serve` at a
