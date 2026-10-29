@@ -1,7 +1,7 @@
 # vaani — a voice puck that talks to your agents
 
 "Okay Nabu, what's on my calendar tomorrow?"
-"Hey Jarvis, did the bank write back?"
+"Okay Nabu, did the bank write back?" … "Want me to reply?" "Yes, go ahead."
 
 A Home Assistant Voice puck hears its wake word, lights its ring, and
 waits for someone to take the question. **Vaani** is that someone. It
@@ -52,10 +52,20 @@ voice: it hears what is said to the puck and says the answer.
   person, with their own agents and accounts; unsure, the puck's own
   `person` (make it one with the house's accounts only) answers, and the
   puck says it wasn't sure. *"This is Asha, …"* works with no model.
+* **Listens again when it asks you something**, no wake word, and
+  starts a conversation over on *"new conversation"* or after a quiet
+  spell.
+* **Puts your agent's questions to you at the puck**: a yes in your own
+  voice, and your spoken PIN for buying, sending or acting on what a web
+  page said. A long job is finished out loud when it's done.
+* **Has a page of its own**: each puck, its questions step by step as
+  they happen, voices and PINs.
 
-Not yet: a yes said at the puck, with a PIN for money. See
-[notes/01](notes/01-a-voice-for-the-house.md) and
-[notes/02](notes/02-whose-question.md).
+Not yet: a different agent per person on a shared puck; telling real
+family voices apart is untried (the numbers so far are synthetic
+voices); and *Hey Jarvis*, though the puck switches to it, never woke
+ours (firmware 26.9.0). See [notes/01](notes/01-a-voice-for-the-house.md)
+and [notes/02](notes/02-whose-question.md).
 
 ## Install
 
@@ -91,7 +101,9 @@ kitchen: home-assistant-voice-091194 at 192.168.1.55, ESPHome 2026.6.0, Nabu Cas
 
 **Take it from Home Assistant** (Settings → Devices → ESPHome → the
 puck → Delete). A puck gives its voice to one listener; while Home
-Assistant holds it, Vaani is ignored. Then:
+Assistant holds it, Vaani is ignored. Deleting it there also wipes the
+puck's key; the first time Vaani reaches it, it gives it a new one.
+Then:
 
 ```
 vaani serve
@@ -129,7 +141,8 @@ doesn't wait.
 127.0.0.1:8797 (`vaani page` prints its address with its key; with
 Sarathi, its card under Your pages): each puck listening or why not,
 the last questions step by step, live from the wake word (woken,
-heard, whose, each step's time, played or never fetched), and the voices, learned and forgotten there.
+heard, whose, each step's time, played or never fetched), a turn still
+being worked on, and the voices and PINs, set and forgotten there.
 `vaani runs` lists the same questions in a terminal.
 
 **Several people at one puck.** List them on the puck (`vaani puck

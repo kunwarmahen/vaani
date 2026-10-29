@@ -41,8 +41,9 @@ answer costs a sentence.
 NAME" or "it's NAME", for a name the puck may hear, is that person's,
 and the opening is taken off the question. A name can be said by
 anyone and a voice can be imitated, so neither is a key: Dvara's rules
-for that person still decide what their agent may do, and a PIN for
-money is next.
+for that person still decide what their agent may do, and a step a
+plain yes isn't enough for asks for their spoken PIN ([01](01-a-voice-for-the-house.md),
+`pins.py`).
 
 ## A print is made at the puck
 
@@ -94,10 +95,10 @@ the real puck.
 
 ## What is not here yet
 
-* **A yes at the puck, with a PIN.** A question that needs a yes waits
-  on the person's phone today. Planned: the puck reads it, the same
-  voice says yes or no, and money or anything sent outside the house
-  also needs the person's spoken PIN.
+* ~~**A yes at the puck, with a PIN.**~~ Built (notes/01, `waiting.py`,
+  `pins.py`): the question is put at the puck; a yes counts in the
+  asker's voice -- "yes, go ahead", since a plain "yes" is too short for
+  a print -- and a step no standing yes covers needs their spoken PIN.
 * **An agent per person.** A puck has one `agent`, which each of its
   people must be allowed in Dvara.
 * **One enrolled person and a stranger.** With a single print, "closer

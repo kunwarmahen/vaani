@@ -258,12 +258,17 @@ signed in. The page shows:
   spoken 0.4s → played*. The step that stopped is red. *never fetched*
   means Vaani answered but the puck never came for the sound: that's
   the firewall (Step 5).
+* **A question still being worked on**, on top: *"find me a flight…" ·
+  7 min so far · agent still working…* (or *waiting for your yes*),
+  until the puck says the answer.
 * **Voices**, with *Learn their voice* and *Forget* (Step 7).
+* **PINs**: set or forget each person's spoken PIN (Step 6).
 
 A question shows up the moment the puck wakes, and fills in as each
 step ends: *listening… → hearing… → agent working… → speaking… → puck
 fetching… → played*. The page checks every second while a question is
 going and every few seconds otherwise.
+
 In a terminal, `uv run vaani runs` lists the same questions, one line
 each.
 
@@ -322,6 +327,10 @@ help), or lower `threshold` under `[voices]` a little (0.6 to 0.5).
 
 ## What it doesn't do yet
 
-Saying *yes* to a question at the puck (with a PIN for money) is next.
-Until then, a question that needs your yes comes to your phone, as
-always.
+* **A different agent per person.** A puck has one agent, and everyone
+  it tells apart must be allowed that agent in Dvara.
+* **Real family voices are untried.** The numbers so far come from
+  synthetic voices, which differ more than a family's. If it's often
+  unsure, teach voices again or lower `threshold` (Step 7).
+* **Hey Jarvis** switches on but never woke our puck. If a wake word
+  doesn't work on yours, go back to Okay Nabu.
