@@ -46,10 +46,16 @@ voice: it hears what is said to the puck and says the answer.
   sentence.
 * **Says what went wrong, out loud**: "I couldn't reach your agent".
 
-Not yet: telling who is speaking (a voice print per person, so one puck
-serves everyone with their own accounts), and a yes said at the puck
-with a PIN. Today each puck answers as the one person its settings name.
-See [notes/01](notes/01-a-voice-for-the-house.md).
+* **Tells who is speaking**, when a puck lists `people`: a voice print
+  per person, made by saying three sentences at the puck, matched on
+  this computer by a small speaker model. A clear match answers as that
+  person, with their own agents and accounts; unsure, the puck's own
+  `person` (make it one with the house's accounts only) answers, and the
+  puck says it wasn't sure. *"This is Asha, …"* works with no model.
+
+Not yet: a yes said at the puck, with a PIN for money. See
+[notes/01](notes/01-a-voice-for-the-house.md) and
+[notes/02](notes/02-whose-question.md).
 
 ## Install
 
@@ -89,6 +95,21 @@ Assistant holds it, Vaani is ignored. Then:
 vaani serve
 ```
 
+**Several people at one puck.** List them on the puck (`people = ["mahen",
+"asha"]`, names from Dvara's actors file; `person` is who answers when it
+isn't sure), then:
+
+```
+uv sync --extra voices        # the speaker model's runtime (sherpa-onnx), CPU only
+vaani voices fetch            # the model itself, 40 MB, once
+vaani voices enroll asha --at-puck kitchen
+```
+
+and Asha says the wake word and any sentence at the kitchen puck, three
+times; the puck counts down, then *"Thanks. I know asha's voice now."*
+`vaani voices list`, `vaani voices forget asha`, and `vaani voices who
+FILE.wav --puck kitchen` to see whose a recording is.
+
 Each step can be tried on its own, with no puck speaking:
 
 ```
@@ -122,8 +143,13 @@ port = 8799
 name = "kitchen"
 host = "192.168.1.55"
 key_file = "~/.config/vaani/kitchen.key"     # chmod 600, or Vaani refuses it
-person = "mahen"                             # from Dvara's actors file
-agent = "minder"
+person = "mahen"                             # from Dvara's actors file; unsure: this one
+agent = "minder"                             # an agent every one of its people may use
+# people = ["mahen", "asha"]                 # voices it tells apart
+
+# [voices]
+# threshold = 0.6                            # this close to a print to be that person
+# margin = 0.15                              # and this much closer than to anyone else
 ```
 
 Unknown keys are errors. `VAANI_CONFIG` names another folder;
@@ -150,6 +176,8 @@ src/vaani/
 ├── hearing.py    Whisper, over the OpenAI transcription road
 ├── speaking.py   Piper, over Wyoming; what an answer sounds like read aloud
 ├── dvara.py      the words to the person's agent (POST /message)
+├── voices.py     who is speaking: a print per person, a small model, sure or the house
+├── asking.py     whose question it is, or a sample for a print made at the puck
 ├── clips.py      answers kept a few minutes, served by name to the puck
 ├── keys.py       a puck's key, out of a backup of its flash
 ├── serving.py    `vaani serve`: every puck, and the answers they fetch
@@ -162,7 +190,7 @@ src/vaani/
 ## Tests
 
 ```
-uv run pytest -q        # 16 passed
+uv run pytest -q        # 22 passed
 ```
 
 ## License

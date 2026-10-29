@@ -10,6 +10,10 @@ license-files = ["LICENSE"]
 # Dvara is a program with an HTTP door. None of them is imported.
 dependencies = ["aioesphomeapi>=44"]
 
+[project.optional-dependencies]
+# Telling voices apart (voices.py): a small speaker model on the CPU.
+voices = ["sherpa-onnx>=1.10", "numpy>=1.26"]
+
 [project.scripts]
 vaani = "vaani.cli:main"
 

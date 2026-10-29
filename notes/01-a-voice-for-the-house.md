@@ -128,13 +128,9 @@ Assistant, and a person in the room to hear it.
 
 ## What is not here yet
 
-* **Who is speaking.** One puck, several people, each with their own
-  accounts. Planned: a voice print per person, made once from a few
-  sentences, kept in their folder, matched on this computer by a small
-  speaker model. A sure match is that person; not sure, or nobody
-  enrolled, is the house (house accounts only), and the puck says it
-  isn't sure who's asking. "This is Asha" before a question works with
-  no model at all.
+* ~~**Who is speaking.**~~ A voice print per person, made at the puck,
+  matched here; unsure is the puck's own person, said so
+  ([02](02-whose-question.md)).
 * **A yes at the puck, with a PIN.** A turn that needs a yes waits for
   it on the person's phone today. Planned: the puck reads the question,
   the same voice answers yes or no, and money or anything sent outside

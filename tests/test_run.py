@@ -35,7 +35,7 @@ def drive(sound: bytes, *, hear=None, answer=None, speak=None, **listen):
     async def heard(_wav):
         return "what's the weather"
 
-    async def answered(text):
+    async def answered(text, _wav):
         asked.append(text)
         return "**Sunny**, see [the forecast](https://example.com)."
 
@@ -88,7 +88,7 @@ def test_a_puck_that_stops_sending_ends_the_run():
 
 
 def test_dvara_down_is_said_out_loud():
-    async def down(_text):
+    async def down(_text, _wav):
         raise OSError("connection refused")
     said, events, _ = drive(QUIET * 10 + tone(1.0) + QUIET * 40, answer=down)
     assert dict(events)["TTS_START"] == {"text": COULDNT_REACH}
@@ -103,7 +103,7 @@ def test_whisper_hearing_nothing_is_said_too():
 
 
 def test_when_piper_is_down_as_well_the_ring_still_stops():
-    async def down(_text):
+    async def down(_text, _wav):
         raise OSError("no Dvara")
 
     async def mute(_words):

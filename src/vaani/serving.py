@@ -13,10 +13,12 @@ import json
 import logging
 import os
 
-from vaani import dvara, hearing, speaking, status
+from vaani import asking, dvara, hearing, speaking, status
+from vaani import config as settings
 from vaani.clips import Clips, address_towards
 from vaani.config import Config, ConfigError, Puck
 from vaani.satellite import Satellite
+from vaani.voices import Prints
 
 log = logging.getLogger("vaani")
 
@@ -41,11 +43,17 @@ async def serve(conf: Config) -> int:
         return await asyncio.to_thread(hearing.hear, wav, url=conf.hear_url,
                                        model=conf.hear_model, language=conf.language)
 
-    async def answer(puck: Puck, text: str) -> str:
-        got = await asyncio.to_thread(dvara.ask, text, person=puck.person,
+    prints = Prints(settings.path().parent / "voices")
+
+    async def answer(puck: Puck, text: str, wav: bytes) -> str:
+        asked = await asyncio.to_thread(asking.whose, conf, puck, text, wav, prints)
+        if asked.sample:
+            return asked.sample
+        got = await asyncio.to_thread(dvara.ask, asked.text, person=asked.person,
                                       agent=puck.agent or conf.agent, puck=puck.name,
                                       url=conf.dvara_url, token=token)
-        return str(got.get("text") or "")
+        said = str(got.get("text") or "")
+        return f"{asked.before} {said}".strip()
 
     async def speak(words: str) -> str:
         wav = await asyncio.to_thread(speaking.speak, words, host=conf.speak_host,

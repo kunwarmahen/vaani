@@ -36,7 +36,7 @@ RETRY = 5.0
 
 class Satellite:
     def __init__(self, puck: Puck, *, hear: Callable[[bytes], Awaitable[str]],
-                 answer: Callable[[Puck, str], Awaitable[str]],
+                 answer: Callable[[Puck, str, bytes], Awaitable[str]],
                  speak: Callable[[str], Awaitable[str]]) -> None:
         self.puck = puck
         self.hear, self.answer, self.speak = hear, answer, speak
@@ -83,7 +83,8 @@ class Satellite:
         if self.run is not None:
             self.run.stop()
         run = Run(send=self._send, hear=self.hear,
-                  answer=lambda text: self.answer(self.puck, text), speak=self.speak)
+                  answer=lambda text, wav: self.answer(self.puck, text, wav),
+                  speak=self.speak)
         self.run = run
         log.info("%s: woken%s", self.puck.name, f" by {wake_word!r}" if wake_word else "")
 

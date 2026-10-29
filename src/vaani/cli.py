@@ -10,6 +10,11 @@
     vaani ask "words" [--puck P]    what that puck's person's agent answers, as text
     vaani serve                     every puck, listening, until stopped
     vaani status [--json]           is it here, is it listening, which pucks
+    vaani voices fetch              the speaker model (once), to tell voices apart
+    vaani voices enroll NAME --at-puck kitchen   their next 3 sentences there
+                                    make their voice print (or: FILE.wav ...)
+    vaani voices who FILE.wav --puck kitchen     whose voice that is
+    vaani voices list | forget NAME
     vaani keeps --json              what a backup takes (Sarathi asks)
 
 Each step of a run can be tried on its own, without a puck speaking:
@@ -30,7 +35,7 @@ import sys
 from pathlib import Path
 
 from vaani import config as settings
-from vaani import dvara, hearing, keys, speaking, version
+from vaani import dvara, hearing, keys, speaking, version, voices
 from vaani.config import ConfigError, Puck
 
 
@@ -80,6 +85,16 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("keeps", help="what a backup should take")
     p.add_argument("--json", action="store_true", dest="json_out")
 
+    p = sub.add_parser("voices", help="telling voices apart: fetch, enroll, who, list, "
+                       "forget")
+    p.add_argument("what", choices=("fetch", "enroll", "who", "list", "forget"))
+    p.add_argument("name", nargs="?", default="", help="a person (enroll, forget), or a "
+                   "WAV file (who)")
+    p.add_argument("files", nargs="*", help="WAV files of them talking (enroll)")
+    p.add_argument("--at-puck", dest="at_puck", default="", metavar="PUCK",
+                   help="enroll from their next sentences at this puck")
+    p.add_argument("--puck", default="", help="whose people to match against (who)")
+
     p = sub.add_parser("serve", help="every puck, listening, until stopped")
     p.add_argument("--quiet", action="store_true", help="only problems in the log")
     return parser
@@ -107,6 +122,8 @@ def main(argv: list[str] | None = None) -> int:
                 for p in got["pucks"]:
                     print(f"  {p['name']:<10} {p['host']:<15} as {p['person']}, key {p['key']}")
             return 0
+        if args.command == "voices":
+            return _voices(args)
         conf = settings.load()
         if args.command == "check":
             return asyncio.run(_check(conf, args.puck))
@@ -135,12 +152,59 @@ def main(argv: list[str] | None = None) -> int:
             logging.getLogger("aioesphomeapi").setLevel(logging.ERROR)
             return asyncio.run(serve(conf))
     except (ConfigError, hearing.HearingError, speaking.SpeakingError,
-            dvara.DvaraError, keys.NoKey, OSError) as exc:
+            dvara.DvaraError, keys.NoKey, voices.VoiceError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     except KeyboardInterrupt:
         return 130
     return 2
+
+
+def _voices(args) -> int:
+    prints = voices.Prints(settings.path().parent / "voices")
+    if args.what == "fetch":
+        print(f"the speaker model is at {voices.fetch()}")
+        return 0
+    if args.what == "list":
+        known = prints.known()
+        for person, kept in known.items():
+            print(f"{person:<12} from {kept.get('samples')} sample(s), {kept.get('model')}")
+        if not known:
+            print("no voice prints yet: `vaani voices enroll NAME --at-puck PUCK`")
+        return 0
+    if not args.name:
+        raise ConfigError(f"voices {args.what}: whose? a person's name"
+                          + (" or a WAV file" if args.what == "who" else ""))
+    if args.what == "forget":
+        print(f"forgot {args.name}'s voice print" if prints.forget(args.name)
+              else f"there was no print for {args.name}")
+        return 0
+    if args.what == "who":
+        conf = settings.load()
+        puck = conf.puck(args.puck) if args.puck else _only(conf)
+        people = puck.people or tuple(prints.known())
+        found = prints.match(Path(args.name).read_bytes(), people,
+                             threshold=conf.threshold, margin=conf.margin)
+        print(f"{found.person or 'not sure'} ({found.score:.2f}, next {found.runner_up:.2f})")
+        return 0
+    if args.at_puck:
+        from vaani import asking
+        conf = settings.load()
+        puck = conf.puck(args.at_puck)
+        if puck.people and args.name not in puck.people:
+            raise ConfigError(f"{args.name} isn't in the {puck.name} puck's people; add "
+                              "them there first")
+        prints._extract()                       # the model is there, before anyone talks
+        asking.start_enrolling(puck.name, args.name)
+        print(f"Now, at the {puck.name} puck, {args.name} says the wake word and any "
+              f"sentence, {voices.SAMPLES} times; the puck counts down. (`vaani serve` "
+              "must be running.)")
+        return 0
+    if not args.files:
+        raise ConfigError("enroll from what? --at-puck PUCK, or WAV files of them talking")
+    count = prints.enroll(args.name, [Path(f).read_bytes() for f in args.files])
+    print(f"{args.name}'s voice print made from {count} sample(s)")
+    return 0
 
 
 def _only(conf: settings.Config) -> Puck:

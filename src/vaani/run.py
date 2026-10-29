@@ -20,6 +20,9 @@ event, so the ring stops). Whisper or Dvara not answering is spoken --
 "I couldn't reach your agent" -- when Piper can still speak; when it
 can't either, the error event is all there is.
 
+The answer is given the sound as well as the words, so who is speaking
+can be told from it (``voices.py``) before anyone is asked.
+
 Written apart from the ESPHome connection (``satellite.py``), with the
 hearing, answering and speaking passed in, so a run can be driven by a
 test with no puck, no Whisper and no model.
@@ -62,7 +65,7 @@ class Run:
 
     def __init__(self, *, send: Callable[[Ev, dict | None], None],
                  hear: Callable[[bytes], Awaitable[str]],
-                 answer: Callable[[str], Awaitable[str]],
+                 answer: Callable[[str, bytes], Awaitable[str]],
                  speak: Callable[[str], Awaitable[str]],
                  listen: EndOfSpeech | None = None, stall: float = STALL) -> None:
         self.send, self.hear, self.answer, self.speak = send, hear, answer, speak
@@ -87,8 +90,9 @@ class Run:
             self.send(Ev.VOICE_ASSISTANT_STT_VAD_END, {})
             if ended in ("silence", "stopped"):
                 return self._fail("stt-no-text-recognized", "nothing was said")
+            wav = as_wav(bytes(self.listen.heard))
             try:
-                heard = await self.hear(as_wav(bytes(self.listen.heard)))
+                heard = await self.hear(wav)
             except Exception as exc:              # noqa: BLE001 -- said, never lost
                 return await self._say_failed("stt-provider-unavailable", exc,
                                               COULDNT_HEAR)
@@ -99,7 +103,7 @@ class Run:
             self.send(Ev.VOICE_ASSISTANT_STT_END, {"text": heard})
             self.send(Ev.VOICE_ASSISTANT_INTENT_START, {})
             try:
-                said = await self.answer(heard)
+                said = await self.answer(heard, wav)
             except Exception as exc:              # noqa: BLE001
                 return await self._say_failed("intent-failed", exc, COULDNT_REACH)
             self.said.answer = said

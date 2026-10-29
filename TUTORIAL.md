@@ -151,8 +151,53 @@ The whole answer is also in Dvara's record of what each message did
 | The ring finishes but no sound | The puck can't reach port 8799 | the `ufw` line in Step 5; `[serve] address` if this computer has several |
 | `… can be read by others; chmod 600 …` | The key file is open to others | run the `chmod` it shows |
 
+## Step 7 · Everyone in the house, each their own
+
+So far the puck answers as one person. To have it tell people apart,
+so each gets their own calendar and mail:
+
+1. **Make a "house" person in Dvara** with only the house's accounts
+   (Sarathi's Settings → People → Add, Accounts: *None* or a shared
+   one). The puck answers as them when it isn't sure who's asking.
+2. **List the people on the puck**, in `~/.config/vaani/vaani.toml`:
+
+   ```toml
+   [[puck]]
+   name = "kitchen"
+   ...
+   person = "house"                   # when it isn't sure
+   agent = "minder"                   # one every person below may use
+   people = ["owner", "asha"]
+   ```
+
+3. **Get the voice model** (once):
+
+   ```
+   uv sync --extra voices
+   uv run vaani voices fetch
+   ```
+
+4. **Each person teaches it their voice**, with `vaani serve` running:
+
+   ```
+   uv run vaani voices enroll asha --at-puck kitchen
+   ```
+
+   Asha then says the wake word and any sentence at the puck, three
+   times. The puck answers *"Got it. 2 more…"*, *"Got it. 1 more…"*,
+   then *"Thanks. I know asha's voice now."*
+
+Now *"what's on my calendar?"* is answered from the calendar of whoever
+asked. When the puck isn't sure, it begins *"I'm not sure who's asking,
+so I'm answering for house."* Starting with *"This is Asha, …"* always
+works. `uv run vaani voices list` shows whose voices it knows;
+`uv run vaani voices forget asha` deletes one.
+
+If it often isn't sure about someone, teach them again (more samples
+help), or lower `threshold` under `[voices]` a little (0.6 to 0.5).
+
 ## What it doesn't do yet
 
-Each puck answers as the one person in its settings. Telling voices
-apart, so everyone in the house gets their own accounts from the same
-puck, and saying *yes* (with a PIN for money) at the puck, are next.
+Saying *yes* to a question at the puck (with a PIN for money) is next.
+Until then, a question that needs your yes comes to your phone, as
+always.

@@ -27,8 +27,13 @@ never a library pulled in here.
     name = "kitchen"
     host = "192.168.1.55"
     key_file = "~/.config/vaani/kitchen.key"
-    person = "mahen"                         # who it answers as
+    person = "mahen"                         # who it answers as (when unsure)
     agent = "minder"
+    people = ["mahen", "asha"]               # voices it may tell apart (optional)
+
+    [voices]                                 # telling voices apart (optional)
+    threshold = 0.6
+    margin = 0.15
 
 A KEY IS A FILE, NEVER A LINE HERE. The puck's key opens its microphone,
 so it lives in a file of its own, readable by you alone, and this file
@@ -68,7 +73,8 @@ KNOWN = {
     "hear": {"url", "model", "language"},
     "speak": {"host", "port", "voice"},
     "serve": {"address", "host", "port"},
-    "puck": {"name", "host", "port", "key_file", "person", "agent"},
+    "puck": {"name", "host", "port", "key_file", "person", "agent", "people"},
+    "voices": {"threshold", "margin"},
 }
 
 
@@ -84,6 +90,8 @@ class Puck:
     person: str
     agent: str = ""
     port: int = ESPHOME_PORT
+    #: The people this puck may tell apart by voice; ``person`` when unsure.
+    people: tuple[str, ...] = ()
 
     def key(self) -> str:
         """The key, read when it's needed: a file only you can read."""
@@ -113,6 +121,8 @@ class Config:
     address: str = ""
     host: str = "0.0.0.0"
     port: int = SERVE_PORT
+    threshold: float = 0.6
+    margin: float = 0.15
     pucks: tuple[Puck, ...] = field(default_factory=tuple)
 
     def dvara_token(self) -> str:
@@ -192,6 +202,12 @@ def parse(text: str, where: str = "vaani.toml") -> Config:
     if not isinstance(data.get("puck", []), list):
         raise ConfigError(f"{where}: pucks are [[puck]] tables, one per puck")
     d, h, s, v = (data.get(k, {}) for k in ("dvara", "hear", "speak", "serve"))
+    heard = data.get("voices", {})
+    for key in ("threshold", "margin"):
+        value = heard.get(key, 0.5)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) \
+                or not 0 <= value <= 1:
+            raise ConfigError(f"{where}: voices.{key} is a number from 0 to 1")
     pucks = []
     for row in data.get("puck", []):
         name, person = str(row.get("name", "")), str(row.get("person", ""))
@@ -203,9 +219,15 @@ def parse(text: str, where: str = "vaani.toml") -> Config:
             raise ConfigError(f"{where}: puck {name}: host and key_file, both")
         if name in {p.name for p in pucks}:
             raise ConfigError(f"{where}: two pucks called {name}")
+        people = row.get("people", [])
+        if not isinstance(people, list) or not all(isinstance(p, str) and NAME.match(p)
+                                                   for p in people):
+            raise ConfigError(f"{where}: puck {name}: people is a list of names from "
+                              "Dvara's actors file, like [\"mahen\", \"asha\"]")
         pucks.append(Puck(name=name, host=str(row["host"]), key_file=str(row["key_file"]),
                           person=person, agent=str(row.get("agent", "")),
-                          port=_port(row.get("port", ESPHOME_PORT), where)))
+                          port=_port(row.get("port", ESPHOME_PORT), where),
+                          people=tuple(dict.fromkeys(people))))
     base = Config()
     return Config(
         dvara_url=str(d.get("url", base.dvara_url)).rstrip("/"),
@@ -220,6 +242,8 @@ def parse(text: str, where: str = "vaani.toml") -> Config:
         address=str(v.get("address", "")),
         host=str(v.get("host", base.host)),
         port=_port(v.get("port", base.port), where),
+        threshold=float(heard.get("threshold", base.threshold)),
+        margin=float(heard.get("margin", base.margin)),
         pucks=tuple(pucks))
 
 
