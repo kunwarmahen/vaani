@@ -6,6 +6,8 @@
     POST /api/voices/enroll      {"person", "puck"}: their next sentences there
     POST /api/voices/forget      {"person"}
     POST /api/voices/stop        {}: a learning left undone
+    POST /api/pins/set           {"person", "pin"}: their spoken PIN (kept as a hash)
+    POST /api/pins/forget        {"person"}
 
 SERVED BY ``vaani serve``, BESIDE THE PUCKS. The page shows what the
 running serve knows -- each puck held or why not, each run as it ends,
@@ -43,6 +45,7 @@ from urllib.parse import urlparse
 from vaani import asking, runs, status
 from vaani import config as settings
 from vaani.config import NAME, ConfigError
+from vaani.pins import PinError, Pins
 from vaani.voices import Prints, VoiceError
 
 MAX_BODY = 4096
@@ -79,6 +82,7 @@ def state(prints: Prints) -> dict:
     except ConfigError:
         pucks = []
     return {"status": status.report(), "runs": runs.read(30), "pucks": pucks,
+            "pins": Pins(settings.path().parent / "pins").people(),
             "voices": [{"person": person, "samples": kept.get("samples")}
                        for person, kept in prints.known().items()],
             "enrolling": asking.enrolling()}
@@ -118,6 +122,24 @@ def act(what: str, body: dict, prints: Prints) -> str:
     asking.start_enrolling(puck.name, person)
     return (f"At the {puck.name} puck, {person} says the wake word and any sentence, "
             "three times. The puck counts down.")
+
+
+def pin_act(what: str, body: dict) -> str:
+    """A person's PIN set or forgotten; what to say back. Never echoed."""
+    person = str(body.get("person") or "")
+    if not NAME.match(person):
+        raise PageError(400, "whose PIN? a person's name, as Dvara has them")
+    pins = Pins(settings.path().parent / "pins")
+    if what == "forget":
+        return f"Forgot {person}'s PIN." if pins.forget(person) else f"{person} had no PIN."
+    if what != "set":
+        raise PageError(404, "not found")
+    try:
+        pins.set(person, str(body.get("pin") or "").strip())
+    except PinError as exc:
+        raise PageError(400, str(exc)) from None
+    return (f"Kept {person}'s PIN. At the puck, a step that needs it asks them to say it, "
+            "one digit at a time.")
 
 
 def _static(name: str) -> bytes:
@@ -183,7 +205,7 @@ def _handler(server: PageServer):
 
         def do_POST(self) -> None:  # noqa: N802
             path = urlparse(self.path).path
-            if not path.startswith("/api/voices/"):
+            if not path.startswith(("/api/voices/", "/api/pins/")):
                 return self._json(404, {"detail": "not found"})
             if not self._allowed():
                 return None
@@ -197,7 +219,10 @@ def _handler(server: PageServer):
             if not isinstance(body, dict):
                 return self._json(400, {"detail": "the body is a JSON object"})
             try:
-                said = act(path.removeprefix("/api/voices/"), body, server.prints)
+                if path.startswith("/api/pins/"):
+                    said = pin_act(path.removeprefix("/api/pins/"), body)
+                else:
+                    said = act(path.removeprefix("/api/voices/"), body, server.prints)
             except PageError as exc:
                 return self._json(exc.code, {"detail": str(exc)})
             self._json(200, {"said": said})

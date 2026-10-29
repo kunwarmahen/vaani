@@ -57,8 +57,16 @@ def yes_or_no(text: str) -> bool | None:
     return None
 
 
-def spoken_question(ask: dict) -> str:
-    """The question as the puck says it: a link is its site's name."""
+#: How the puck asks, by what the answer must be. Each ends with a
+#: question mark: that is what keeps the puck listening (run.asks_back).
+PLAIN = "Shall I go ahead?"
+BY_VOICE = "To say yes, say: yes, go ahead. Shall I?"
+BY_PIN = "That needs your PIN, said one digit at a time. Shall I?"
+
+
+def spoken_question(ask: dict, how: str = PLAIN) -> str:
+    """The question as the puck says it: a link is its site's name; ``how``
+    says what answers it (a yes, a longer yes in the asker's voice, a PIN)."""
     summary = str(ask.get("summary") or ask.get("tool") or "do something")
     summary = re.sub(r"https?://(?:www\.)?([^/\s]+)\S*", r"\1", summary)
     # a browser names a page's parts e14, e7: said, that's noise
@@ -68,7 +76,7 @@ def spoken_question(ask: dict) -> str:
                      flags=re.I)
     summary = re.sub(r"\be\d+\b", "something on the page", summary)
     summary = summary.strip().rstrip(".")
-    return f"Your agent wants to {summary[:1].lower()}{summary[1:]}. Shall I go ahead?"
+    return f"Your agent wants to {summary[:1].lower()}{summary[1:]}. {how}"
 
 
 @dataclass
@@ -116,3 +124,41 @@ async def outcome(waiting: Waiting, *, asks: Callable[[], Awaitable[list[dict]]]
                 return "ask", ask
         if until is not None and loop.time() >= until:
             return "slow", None
+
+
+def judge(*, weighty: bool, verdict: bool | None, voice: str, locked: bool,
+          pin_ok: Callable[[], bool], again: bool, person: str) -> tuple[str, str]:
+    """What a reply to the puck's question comes to:
+
+        ("yes", "") | ("no", "") | ("again", words) | ("phone", why)
+
+    ``weighty``: a call no standing yes covers -- the asker's PIN answers
+    it. ``verdict``: the words' yes or no (None: neither). ``voice``:
+    "them", "someone else", "unsure" or "unknown" (no print to check).
+    ``pin_ok`` is asked only when the PIN is what decides, since asking it
+    counts a wrong one. ``again``: the puck has already asked once more.
+
+    A NO IS ALWAYS A NO, whoever says it: refusing is never the risk."""
+    if verdict is False:
+        return "no", ""
+    if weighty:
+        if voice == "someone else":
+            return "phone", f"That didn't sound like {person}."
+        if locked:
+            return "phone", "Your PIN is locked here for now."
+        if pin_ok():
+            return "yes", ""
+        if again:
+            return "phone", "That PIN wasn't right."
+        return "again", "That's not right. Say your PIN once more, one digit at a time?"
+    if verdict is None:
+        if again:
+            return "phone", "I didn't catch a yes or a no."
+        return "again", "Sorry, was that a yes or a no?"
+    if voice == "someone else":
+        return "phone", f"Only {person} can say yes to that."
+    if voice == "unsure":
+        if again:
+            return "phone", f"I couldn't tell that was {person}."
+        return "again", f"I couldn't tell that was you, {person}. Say: yes, go ahead?"
+    return "yes", ""

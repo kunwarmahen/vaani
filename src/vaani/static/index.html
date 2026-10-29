@@ -168,6 +168,26 @@ footer { margin-top: 36px; color: var(--ink-3); font-size: 13px; }
         <div id="said" class="said" role="status"></div>
       </div>
     </section>
+    <section aria-labelledby="h-pins">
+      <h2 id="h-pins">PINs</h2>
+      <p class="lede">Some things your agent does need more than a yes: buying, sending,
+        or changing something after it read a web page or an email. At the puck, those
+        ask for the person's PIN, said one digit at a time. A PIN is kept only as a hash,
+        never the digits, and never goes to your agent. Two wrong tries and the question
+        goes to the phone; five wrong in an hour lock it at the puck for the hour.</p>
+      <div class="voices">
+        <div id="pins"></div>
+        <form class="learn" id="pin-form" autocomplete="off">
+          <label>Whose <select id="pin-who"></select></label>
+          <label>PIN <input id="pin-one" type="password" inputmode="numeric"
+            pattern="[0-9]{4,8}" minlength="4" maxlength="8" size="8" required></label>
+          <label>Again <input id="pin-two" type="password" inputmode="numeric"
+            pattern="[0-9]{4,8}" minlength="4" maxlength="8" size="8" required></label>
+          <button class="btn main" type="submit">Set PIN</button>
+        </form>
+        <div id="pin-said" class="said" role="status"></div>
+      </div>
+    </section>
   </main>
   <footer id="foot"></footer>
 </div>
@@ -271,6 +291,7 @@ function drawState(got) {
   }
   drawRuns(got.runs || [], pucks.filter((p) => p.working));
   drawVoices(got);
+  drawPins(got);
   document.getElementById("foot").textContent =
     `Vaani ${st.version || ""}${st.answers_at ? ` · answers served at ${st.answers_at}` : ""}`;
 }
@@ -356,6 +377,30 @@ function drawVoices(got) {
     ...people.map((x) => h("option", { value: x }, x)));
   document.getElementById("learn-at").replaceChildren(
     ...pucks.map((p) => h("option", { value: p.name }, p.name)));
+  document.getElementById("pin-who").replaceChildren(
+    ...people.map((x) => h("option", { value: x }, x)));
+}
+
+function drawPins(got) {
+  const set = got.pins || [];
+  document.getElementById("pins").replaceChildren(...(set.length ? set.map((person) => {
+    const forget = h("button.btn.link", { type: "button" }, "Forget");
+    forget.addEventListener("click", () => {
+      if (confirm(`Forget ${person}'s PIN? Steps that need it go to their phone until a new one is set.`)) {
+        pinAct("forget", { person });
+      }
+    });
+    return h("div.voice", {}, h("span.who", {}, person), h("span.meta", {}, "has a PIN"), forget);
+  }) : [h("p.empty", {}, "Nobody has a PIN yet, so those steps are asked on the phone.")]));
+}
+
+async function pinAct(what, body) {
+  const el = document.getElementById("pin-said");
+  el.textContent = "…";
+  el.classList.remove("bad");
+  try { el.textContent = (await api(`/api/pins/${what}`, body)).said; }
+  catch (err) { el.textContent = err.message; el.classList.add("bad"); }
+  look();
 }
 
 function say(text, bad) {
@@ -394,6 +439,18 @@ async function look() {
   }
 }
 
+document.getElementById("pin-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const one = document.getElementById("pin-one"), two = document.getElementById("pin-two");
+  if (one.value !== two.value) {
+    const el = document.getElementById("pin-said");
+    el.textContent = "The two PINs don't match.";
+    el.classList.add("bad");
+    return;
+  }
+  pinAct("set", { person: document.getElementById("pin-who").value, pin: one.value });
+  one.value = two.value = "";                 // never left on the page
+});
 document.getElementById("learn").addEventListener("submit", (e) => {
   e.preventDefault();
   act("enroll", { person: document.getElementById("learn-who").value,

@@ -168,6 +168,25 @@ ahead?"*, then listens. Say *"yes"* or *"no"* (*"go ahead"*, *"sure"*,
 once. The same question is on your phone as well, and whichever you
 answer first counts.
 
+* **Only you can say yes to your question.** Once the puck knows your
+  voice (Step 7), it asks you to say *"yes, go ahead"*, which is long
+  enough to tell your voice from someone else's. Another person's yes
+  isn't counted, and if it can't tell, it asks you once more and then
+  leaves the question on your phone. A *"no"* from anyone always counts.
+* **The bigger things need your PIN.** Buying, sending, or changing
+  something after your agent read a web page or an email: the puck says
+  *"…That needs your PIN, said one digit at a time. Shall I?"*. Say it
+  like *"four, seven, oh, nine"*. A wrong PIN gets one more try, then
+  the question goes to your phone, and five wrong in an hour locks it at
+  the puck for the hour. Set a PIN with `uv run vaani pin set mahen`
+  (or on Vaani's page, under **PINs**). It's kept only as a scrambled
+  hash, never sent to your agent, and never written in the log or on
+  the page. Someone in the room can hear you say it, so pick one you
+  don't use for your bank card. With no PIN set, those steps are asked
+  on your phone. (A web search that types into a page after reading it
+  counts as one of these, so a flight search may ask for it a few
+  times.)
+
 **When it takes a while.** After a minute the puck says *"This is
 taking a while. I'll tell you here when it's done."* and the ring stops.
 When the answer is ready, the puck says it by itself. If the agent

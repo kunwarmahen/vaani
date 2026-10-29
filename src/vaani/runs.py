@@ -117,3 +117,12 @@ class Book:
         with os.fdopen(os.open(spare, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w") as out:
             json.dump(self._runs, out)
         spare.replace(target)
+
+
+def record(puck: str, woke: str, said: Any, live: bool) -> dict[str, Any]:
+    """A run as its record keeps it. A PIN said at the puck is never in it:
+    such a run's words are "(said a PIN)"."""
+    heard = "(said a PIN)" if said.secret and said.heard else said.heard
+    return {"puck": puck, "woke_by": woke, "ended": said.ended, "heard": heard,
+            "person": said.person, "how": said.how, "answer": said.answer,
+            "url": said.url, "error": said.error, "took": dict(said.took), "live": live}

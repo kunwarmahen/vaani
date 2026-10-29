@@ -99,3 +99,15 @@ def test_a_voice_is_learned_only_for_someone_the_puck_tells_apart(served):
     assert asking.enrolling() is None
     assert call(served, "/api/voices/forget", {"person": "mahen"})[0] == 200
     assert served.prints.gone == ["mahen"]
+
+
+def test_a_pin_is_set_from_the_page_and_never_shown_back(served):
+    code, said = call(served, "/api/pins/set", {"person": "asha", "pin": "4709"})
+    assert code == 200 and "4709" not in json.dumps(said)
+    code, got = call(served, "/api/state")
+    assert got["pins"] == ["asha"] and "4709" not in json.dumps(got)
+    assert call(served, "/api/pins/set", {"person": "asha", "pin": "1111"})[0] == 400
+    assert call(served, "/api/pins/set", {"person": "asha", "pin": "4709"},
+                token="wrong-token-wrong")[0] == 401
+    assert call(served, "/api/pins/forget", {"person": "asha"})[0] == 200
+    assert call(served, "/api/state")[1]["pins"] == []

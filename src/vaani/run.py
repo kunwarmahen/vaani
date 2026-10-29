@@ -71,6 +71,8 @@ class Said:
     #: called as each step ends, so a record can follow the run live
     changed: Callable[[], None] = field(default=lambda: None, repr=False, compare=False)
     record_id: str = ""
+    #: what was said here is a PIN: never written down, never logged
+    secret: bool = False
 
     def tell(self) -> None:
         try:

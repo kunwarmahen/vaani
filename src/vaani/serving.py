@@ -20,7 +20,19 @@ from vaani.clips import Clips, address_towards
 from vaani.config import Config, ConfigError, Puck
 from vaani.page import PageServer, page_token
 from vaani.speaking import aloud
-from vaani.waiting import LONG, Waiting, outcome, spoken_question, yes_or_no
+from vaani.pins import SHORTEST, Pins, heard_digits
+from vaani.voices import VoiceError
+from vaani.waiting import (
+    BY_PIN,
+    BY_VOICE,
+    LONG,
+    PLAIN,
+    Waiting,
+    judge,
+    outcome,
+    spoken_question,
+    yes_or_no,
+)
 from vaani.run import Said, asks_back
 from vaani.satellite import Satellite
 from vaani.voices import Prints
@@ -46,6 +58,7 @@ async def serve(conf: Config) -> int:
                   fetched=book.fetched).start()
     log.info("answers served at http://%s:%s/clip/", address, clips.port)
     prints = Prints(settings.path().parent / "voices")
+    pins = Pins(settings.path().parent / "pins")
     page = None
     if conf.page_port:
         page = PageServer(prints, page_token(), host=conf.page_host,
@@ -103,10 +116,11 @@ async def serve(conf: Config) -> int:
         now, puck = fresh(puck)
         held = flying.get(puck.name)
         if held is not None and held.ask is not None and (
-                said.follows == held.person or yes_or_no(text) is not None):
+                said.follows == held.person or yes_or_no(text) is not None
+                or (held.ask.get("always_ask") and len(heard_digits(text)) >= SHORTEST)):
             said.person, said.how = held.person, "answering its question"
             said.tell()
-            return await replied(puck, held, text, said)
+            return await replied(puck, held, text, wav, said)
         asked = await asyncio.to_thread(asking.whose, now, puck, text, wav, prints,
                                         said.follows)
         said.person, said.how = asked.person, asked.how
@@ -145,22 +159,77 @@ async def serve(conf: Config) -> int:
             log.info("%s: its agent asks %s: %s", puck.name, held.person,
                      got.get("summary", "")[:80])
             write()
-            return spoken_question(got)
+            words = question_for(puck, held, got)
+            if held.ask is None:       # left on the phone: the rest comes later
+                asyncio.ensure_future(later(puck, held))
+            return words
         asyncio.ensure_future(later(puck, held))
         return "This is taking a while. I'll tell you here when it's done."
 
-    async def replied(puck: Puck, held: Waiting, text: str, said: Said) -> str:
-        """The person's yes or no to the question the puck put."""
+    def question_for(puck: Puck, held: Waiting, ask: dict) -> str:
+        """The question as the puck puts it, by what must answer it: the
+        asker's PIN for a call no standing yes covers, a longer yes in
+        their voice when it's known, else a yes. One that can't be
+        answered here (no PIN set, or locked) is left on the phone."""
+        person = held.person
+        if ask.get("always_ask"):
+            if not pins.has(person) or pins.locked(person):
+                held.ask = None
+                write()
+                why = ("that needs your PIN, and you haven't set one"
+                       if not pins.has(person) else
+                       "that needs your PIN, and it's locked here for now")
+                return (spoken_question(ask, "").rstrip() + f" But {why}, so it's on "
+                        "your phone. I'll tell you here when it's done.")
+            return spoken_question(ask, BY_PIN)
+        return spoken_question(ask, BY_VOICE if person in prints.known() else PLAIN)
+
+    def voice_of(person: str, wav: bytes) -> str:
+        """"them", "someone else", or "unsure": whether the reply is in the
+        asker's voice, among every print kept. "unknown" when the asker
+        has none, so there's nothing to check it against."""
+        known = prints.known()
+        if person not in known:
+            return "unknown"
+        try:
+            found = prints.match(wav, tuple(known), threshold=conf.threshold,
+                                 margin=conf.margin)
+        except VoiceError:
+            return "unsure"            # too short to tell: a plain "yes"
+        log.info("a yes for %s: in the voice of %s (%.2f)", person,
+                 found.person or "nobody sure", found.score)
+        if found.person is None:
+            return "unsure"
+        return "them" if found.person == person else "someone else"
+
+    def left_on_phone(puck: Puck, held: Waiting, why: str) -> str:
+        held.ask = None
+        write()
+        asyncio.ensure_future(later(puck, held))
+        return f"{why} I've left it on your phone, and I'll tell you here when it's done."
+
+    async def replied(puck: Puck, held: Waiting, text: str, wav: bytes, said: Said) -> str:
+        """The person's answer to the question the puck put: a no is a no;
+        a yes counts in the asker's voice (when it's known), and a call no
+        standing yes covers needs their PIN."""
+        ask, person = held.ask, held.person
+        weighty = bool(ask.get("always_ask"))
         verdict = yes_or_no(text)
-        if verdict is None:
-            if held.again:
-                held.ask = None        # it stays on the phone, as it was
-                asyncio.ensure_future(later(puck, held))
-                return ("I didn't catch a yes or a no, so I've left it on your phone. "
-                        "I'll tell you here when it's done.")
+        if weighty and verdict is not False:
+            said.secret = True         # whatever was said, it isn't written down
+        # the voice is checked only where it decides something: a yes
+        voice = voice_of(person, wav) if verdict is not False else "unknown"
+        came, words = judge(weighty=weighty, verdict=verdict, voice=voice,
+                            locked=weighty and pins.locked(person),
+                            pin_ok=lambda: pins.check(person, heard_digits(text)),
+                            again=held.again, person=person)
+        if came == "again":
             held.again = True
-            return "Sorry, was that a yes or a no?"
-        ask, held.ask = held.ask, None
+            return words
+        if came == "phone":
+            return left_on_phone(puck, held, words)
+        verdict = came == "yes"
+        held.ask = None
         write()
         try:
             landed = await asyncio.to_thread(dvara.answer, ask["id"], verdict,
@@ -189,8 +258,12 @@ async def serve(conf: Config) -> int:
                 return
             if kind == "ask":
                 write()
-                await say_later(puck, held, spoken_question(got), held.person,
+                words = question_for(puck, held, got)
+                await say_later(puck, held, words,
+                                held.person if held.ask is not None else "",
                                 how="asked while working")
+                if held.ask is None:   # left on the phone: keep waiting here
+                    continue
                 return                 # the reply run carries it on (replied)
             landed(puck, held)
             words = words_of(held, got)
@@ -221,13 +294,13 @@ async def serve(conf: Config) -> int:
                                       port=conf.speak_port, voice=conf.voice)
         return clips.add(await asyncio.to_thread(flac.from_wav, wav))
 
-    def record(puck: str, woke: str, said: Said, live: bool) -> dict:
-        return {"puck": puck, "woke_by": woke, "ended": said.ended, "heard": said.heard,
-                "person": said.person, "how": said.how, "answer": said.answer,
-                "url": said.url, "error": said.error, "took": dict(said.took),
-                "live": live}
+    record = runs.record
 
     def begun(puck: str, woke: str, said: Said) -> None:
+        # while a PIN is asked for at this puck, whatever is said there is
+        # treated as one: kept out of the record and the log from the start
+        held = flying.get(puck)
+        said.secret = bool(held is not None and held.ask and held.ask.get("always_ask"))
         # the record is made at the wake word and followed step by step
         rid = book.add(record(puck, woke, said, True))
         said.changed = lambda: book.update(rid, record(puck, woke, said, True))

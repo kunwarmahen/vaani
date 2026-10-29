@@ -211,9 +211,18 @@ played.
   looked at, and said it couldn't reach the agent while the turn
   carried on. Now the question is put at the puck and answered there or
   on the phone, and a turn longer than a minute is finished by
-  announcement. **Still to come: the PIN** for money or anything sent
-  outside the house, and checking the yes comes in the asker's voice
-  (today: any voice in the reply run).
+  announcement. ~~**Still to come: the PIN, and the asker's voice.**~~ Built:
+  a yes counts in the asker's voice when their print is known -- asked
+  for as "yes, go ahead", since a plain "yes" is under a second and too
+  short to tell (Piper stand-ins: "Yes, go ahead" 0.63-0.73 to the right
+  print, a stranger unsure at 0.10); a call no standing yes covers
+  (Yantra's `always_ask`: a purchase, a send, a change after reading
+  outside text -- Dvara's /asks now says so) needs the asker's spoken
+  PIN (`pins.py`: scrypt, per person, two tries then the phone, five
+  wrong an hour locks it). A no always counts. The rules are one pure
+  function (`waiting.judge`), and a run while a PIN is asked for is
+  marked secret from its start, so its words are "(said a PIN)" in the
+  record and the log.
 
   First try at the real puck: the puck asked, the person said "Yes." --
   and was asked again, three times. **The puck labels its listening-again

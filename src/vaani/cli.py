@@ -20,6 +20,8 @@
                                     make their voice print (or: FILE.wav ...)
     vaani voices who FILE.wav --puck kitchen     whose voice that is
     vaani voices list | forget NAME | stop   (stop: an enrolling left undone)
+    vaani pin set NAME | forget NAME | list
+                                    a person's spoken PIN, for what a yes isn't enough for
     vaani keeps --json              what a backup takes (Sarathi asks)
 
 Each step of a run can be tried on its own, without a puck speaking:
@@ -116,6 +118,10 @@ def build_parser() -> argparse.ArgumentParser:
                    help="enroll from their next sentences at this puck")
     p.add_argument("--puck", default="", help="whose people to match against (who)")
 
+    p = sub.add_parser("pin", help="a person's spoken PIN: set, forget, list")
+    p.add_argument("what", choices=("set", "forget", "list"))
+    p.add_argument("name", nargs="?", default="")
+
     p = sub.add_parser("serve", help="every puck, listening, until stopped")
     p.add_argument("--quiet", action="store_true", help="only problems in the log")
     return parser
@@ -160,6 +166,8 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "voices":
             return _voices(args)
+        if args.command == "pin":
+            return _pin(args)
         conf = settings.load()
         if args.command == "check":
             return asyncio.run(_check(conf, args.puck))
@@ -295,6 +303,32 @@ def _runs(args) -> int:
         print(f"{run.get('puck')}: heard {run.get('heard')!r} as {run.get('person') or '-'}"
               f" -> {(run.get('answer') or run.get('error') or '')[:60]!r}"
               f" [{took}] {fetched}")
+    return 0
+
+
+def _pin(args) -> int:
+    import getpass
+
+    from vaani.pins import Pins, PinError
+    pins = Pins(settings.path().parent / "pins")
+    if args.what == "list":
+        print("\n".join(pins.people()) or "nobody has a PIN yet: `vaani pin set NAME`")
+        return 0
+    if not args.name:
+        raise ConfigError(f"pin {args.what}: whose? a person's name from Dvara")
+    if args.what == "forget":
+        print(f"forgot {args.name}'s PIN" if pins.forget(args.name)
+              else f"{args.name} had no PIN")
+        return 0
+    first = getpass.getpass(f"{args.name}'s PIN (4 to 8 digits; not shown): ").strip()
+    if getpass.getpass("again: ").strip() != first:
+        raise ConfigError("the two didn't match; nothing was kept")
+    try:
+        pins.set(args.name, first)
+    except PinError as exc:
+        raise ConfigError(str(exc)) from None
+    print(f"kept {args.name}'s PIN (as a hash, never the digits). At the puck, a step "
+          "that needs it asks them to say it, one digit at a time.")
     return 0
 
 

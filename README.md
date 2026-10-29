@@ -104,7 +104,12 @@ google.com. Shall I go ahead?"*. Their clear yes or no goes back
 (`POST /asks/ID`); Telegram has it too, and the first answer counts.
 After a minute the puck says it's still working; the answer, and any
 question on the way, come later as announcements (the puck listens
-after a question).
+after a question). A yes counts in the asker's voice when the puck knows
+it ("yes, go ahead": a plain "yes" is too short to tell), and a call no
+standing yes covers (Yantra's `always_ask`, which Dvara's /asks now
+says) needs the asker's spoken PIN: `vaani pin set NAME`, kept as a
+scrypt hash in `pins/`, two tries at a time, five wrong an hour locks
+it, never in the record or the log.
 
 **The wake word** is the puck's own (Okay Nabu, Hey Jarvis, Hey
 Mycroft); `wake_word = "hey_jarvis"` on a puck, or `vaani puck kitchen
@@ -223,6 +228,7 @@ src/vaani/
 ├── asking.py     whose question it is, or a sample for a print made at the puck
 ├── clips.py      answers kept a few minutes, served by name to the puck
 ├── flac.py       an answer as the puck plays it: FLAC, 48 kHz, no library
+├── pins.py       spoken PINs: kept as hashes, heard as digits, few tries
 ├── waiting.py    a turn that asks or takes long: the question put, the answer said later
 ├── runs.py       the last fifty questions, step by step, for `vaani runs`
 ├── page.py       its own page (8797): pucks, questions, voices; a key, always
@@ -238,7 +244,7 @@ src/vaani/
 ## Tests
 
 ```
-uv run pytest -q        # 40 passed
+uv run pytest -q        # 52 passed
 ```
 
 ## License

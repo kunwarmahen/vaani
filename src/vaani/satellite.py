@@ -230,7 +230,8 @@ class Satellite:
                                   time.monotonic() + self.seconds_of(said.url))
             self.done(self.puck.name, woke, said)
             log.info("%s: %s -- heard %r, answered %r%s", self.puck.name, said.ended,
-                     said.heard, said.answer[:80], f" ({said.error})" if said.error else "")
+                     "(a PIN)" if said.secret else said.heard, said.answer[:80],
+                     f" ({said.error})" if said.error else "")
             if self.run is run:
                 self.run = None
 
