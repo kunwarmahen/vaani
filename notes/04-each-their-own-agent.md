@@ -106,9 +106,10 @@ away; `vaani ask --person` goes to that person's agent.
 
 ## What is not here yet
 
-* **Sarathi's Settings.** The Vaani card there sets a puck's person,
-  agent and people. Each person's own agent is set here, in
-  `vaani.toml` or with `vaani puck`.
+* ~~**Sarathi's Settings.** The Vaani card there sets a puck's person,
+  agent and people.~~ It has *Each person's own agent here* too, sent
+  as `--agent-for`; someone unticked is sent as cleared, so their line
+  never outlives them.
 * **Telling real family voices apart** is still untried
   ([02](02-whose-question.md)); an agent per person is only as right as
   whose voice it heard.
