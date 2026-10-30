@@ -106,8 +106,9 @@ the real puck.
   because the agent read something offers *"yes to all"*: said with the
   PIN once, it covers the rest of that task until something new is read
   (Dvara's notes/72, `waiting.for_the_task`).
-* **An agent per person.** A puck has one `agent`, which each of its
-  people must be allowed in Dvara.
+* ~~**An agent per person.** A puck has one `agent`, which each of its
+  people must be allowed in Dvara.~~ `agents = { asha = "helper" }` on
+  the puck ([04](04-each-their-own-agent.md)).
 * **One enrolled person and a stranger.** With a single print, "closer
   than anyone else" is trivially true, so `threshold` alone decides; two
   or more prints make the margin mean something.

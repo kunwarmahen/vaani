@@ -307,9 +307,15 @@ so each gets their own calendar and mail:
    name = "kitchen"
    ...
    person = "house"                   # when it isn't sure
-   agent = "minder"                   # one every person below may use
+   agent = "minder"                   # who answers, unless someone has their own
    people = ["owner", "asha"]
    ```
+
+   Asha has her own agent? `uv run vaani puck kitchen --agent-for
+   asha=helper` adds `agents = { asha = "helper" }`, and her questions
+   go to *helper* while yours still go to *minder*. She must be allowed
+   *helper* in Dvara, as on Telegram. `uv run vaani ask "hello"
+   --person asha` tries her road without the puck.
 
 3. **Get the voice model** (once):
 
@@ -341,8 +347,6 @@ help), or lower `threshold` under `[voices]` a little (0.6 to 0.5).
 
 ## What it doesn't do yet
 
-* **A different agent per person.** A puck has one agent, and everyone
-  it tells apart must be allowed that agent in Dvara.
 * **Real family voices are untried.** The numbers so far come from
   synthetic voices, which differ more than a family's. If it's often
   unsure, teach voices again or lower `threshold` (Step 7).

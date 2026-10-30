@@ -78,7 +78,7 @@ def state(prints: Prints) -> dict:
     try:
         conf = settings.load()
         pucks = [{"name": p.name, "person": p.person, "agent": p.agent or conf.agent,
-                  "people": list(p.people)} for p in conf.pucks]
+                  "agents": dict(p.agents), "people": list(p.people)} for p in conf.pucks]
     except ConfigError:
         pucks = []
     return {"status": status.report(), "runs": runs.read(30), "pucks": pucks,

@@ -103,7 +103,7 @@ async def serve(conf: Config) -> int:
 
     def fresh(puck: Puck) -> tuple[Config, Puck]:
         """vaani.toml as it is now, so who a puck answers (person, agent,
-        people, from Sarathi's Settings or `vaani puck`) holds from the next question.
+        agents, people, from Sarathi's Settings or `vaani puck`) holds from the next question.
         Where and how it connects stay as they started."""
         try:
             now = settings.load()
@@ -131,8 +131,10 @@ async def serve(conf: Config) -> int:
         new = asking.starts_over(asked.text)
         job = asyncio.ensure_future(asyncio.to_thread(
             dvara.ask, "/new" if new else asked.text, person=asked.person,
-            agent=puck.agent or now.agent, puck=puck.name, url=conf.dvara_url, token=token))
-        held = Waiting(asked.person, puck.agent or now.agent, dvara.thread(puck.name), job,
+            agent=puck.agent_for(asked.person) or now.agent, puck=puck.name,
+            url=conf.dvara_url, token=token))
+        held = Waiting(asked.person, puck.agent_for(asked.person) or now.agent,
+                       dvara.thread(puck.name), job,
                        asked=put.setdefault(puck.name, set()), question=asked.text,
                        since=time.time())
         flying[puck.name] = held
@@ -340,7 +342,8 @@ async def serve(conf: Config) -> int:
                     try:
                         got = await asyncio.to_thread(
                             dvara.ask, "/new", person=person,
-                            agent=current.agent or now.agent, puck=current.name,
+                            agent=current.agent_for(person) or now.agent,
+                            puck=current.name,
                             url=conf.dvara_url, token=token)
                     except dvara.DvaraError as exc:
                         log.warning("%s: couldn't start %s's conversation over: %s",

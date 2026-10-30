@@ -97,7 +97,7 @@ def report() -> dict[str, Any]:
     for puck in conf.pucks:
         key = Path(puck.key_file).expanduser()
         row = {"name": puck.name, "host": puck.host, "person": puck.person,
-               "agent": puck.agent or conf.agent,
+               "agent": puck.agent or conf.agent, "agents": dict(puck.agents),
                "key": "readable" if key.is_file() and os.access(key, os.R_OK) else "missing"}
         if running:                    # held by the serve, or why not
             row["listening"] = problems.get(puck.name) == ""

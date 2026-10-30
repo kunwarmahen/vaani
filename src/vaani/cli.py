@@ -7,11 +7,12 @@
     vaani check [PUCK]              connect to each puck and say what it is
     vaani hear FILE.wav             what Whisper hears in a file
     vaani say "words" --out F.wav   what Piper says, into a file (no puck speaks)
-    vaani ask "words" [--puck P]    what that puck's person's agent answers, as text
+    vaani ask "words" [--puck P] [--person P]
+                                    what that puck's person's agent answers, as text
     vaani serve                     every puck, listening, until stopped
     vaani status [--json]           is it here, is it listening, which pucks
     vaani puck NAME [--person P] [--agent A] [--people a,b] [--fresh-after MIN]
-                    [--wake-word hey_jarvis]
+                    [--wake-word hey_jarvis] [--agent-for asha=helper]
                                     change who a puck answers (read at its next question)
     vaani runs [--json]             the last questions: heard, whose, how long, fetched
     vaani page                      the page's address, with its key
@@ -86,6 +87,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("ask", help="what a puck's person's agent answers, as text")
     p.add_argument("words")
     p.add_argument("--puck", default="")
+    p.add_argument("--person", default="", help="as someone the puck hears, not its person")
 
     p = sub.add_parser("status", help="is it here, is it listening, which pucks")
     p.add_argument("--json", action="store_true", dest="json_out")
@@ -95,6 +97,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("name")
     p.add_argument("--person", default=None, help="who, when it isn't sure")
     p.add_argument("--agent", default=None)
+    p.add_argument("--agent-for", dest="agent_for", action="append", default=None,
+                   metavar="PERSON=AGENT", help="that person's own agent at this puck "
+                   "(again for each; PERSON= for the puck's agent again)")
     p.add_argument("--people", default=None, help="names from Dvara, comma between; "
                    "\"\" for none")
     p.add_argument("--fresh-after", dest="fresh_after", type=int, default=None,
@@ -183,7 +188,9 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "ask":
             puck = conf.puck(args.puck) if args.puck else _only(conf)
-            got = dvara.ask(args.words, person=puck.person, agent=puck.agent or conf.agent,
+            person = args.person or puck.person
+            got = dvara.ask(args.words, person=person,
+                            agent=puck.agent_for(person) or conf.agent,
                             puck=puck.name, url=conf.dvara_url, token=conf.dvara_token())
             print(got.get("text", ""))
             print(f"(read aloud: {speaking.aloud(got.get('text', ''))!r})", file=sys.stderr)
@@ -264,18 +271,35 @@ def _puck(args) -> int:
                      if getattr(args, k) is not None}
     if args.people is not None:
         changes["people"] = [p.strip() for p in args.people.split(",") if p.strip()]
+    if args.agent_for:
+        agents = dict(settings.load().puck(args.name).agents)
+        for pair in args.agent_for:
+            person, _, agent = pair.partition("=")
+            if not person.strip():
+                raise ConfigError(f"--agent-for {pair!r}: PERSON=AGENT, like asha=helper")
+            agents.pop(person.strip(), None)
+            if agent.strip():
+                agents[person.strip()] = agent.strip()
+        changes["agents"] = agents
     if not changes:
-        raise ConfigError("change what? --person, --agent, --people, --fresh-after or "
-                          "--wake-word")
+        raise ConfigError("change what? --person, --agent, --agent-for, --people, "
+                          "--fresh-after or --wake-word")
     where = settings.path()
     before = where.read_text()
     after = settings.with_puck(before, args.name, changes)
     where.with_name(where.name + ".bak").write_text(before)
     where.write_text(after)
     print(f"the {args.name} puck: " + "; ".join(
-        f"{k} {', '.join(v) or 'nobody' if isinstance(v, list) else v}"
+        f"{k} {', '.join(v) or 'nobody' if isinstance(v, list) else _said(v)}"
         for k, v in changes.items()) + " (from its next question; a wake word within a minute)")
     return 0
+
+
+def _said(value) -> str:
+    """A change as `vaani puck` says it back: an agents table as pairs."""
+    if not isinstance(value, dict):
+        return str(value)
+    return ", ".join(f"{k}: {v}" for k, v in value.items()) or "none (the puck's answers everyone)"
 
 
 def _runs(args) -> int:
@@ -285,6 +309,7 @@ def _runs(args) -> int:
         prints = voices.Prints(settings.path().parent / "voices")
         try:
             pucks = [{"name": p.name, "person": p.person, "agent": p.agent,
+                      "agents": dict(p.agents),
                       "people": list(p.people), "fresh_after": p.fresh_after,
                       "wake_word": p.wake_word}
                      for p in settings.load().pucks]

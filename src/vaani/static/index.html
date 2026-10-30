@@ -333,6 +333,9 @@ function drawState(got) {
         : h("div.why", {}, st.serving ? `Not listening: ${p.problem || "not reached yet"}`
                                       : "Vaani isn't running."),
       h("div.what", {}, people),
+      Object.keys(conf.agents || {}).length
+        ? h("div.what", {}, Object.entries(conf.agents)
+            .map(([who, agent]) => `${who} asks ${agent}`).join("; ") + ".") : null,
       (p.wake_words?.on || []).length
         ? h("div.what", {}, `Wakes to “${p.wake_words.on.join("” or “")}”.`) : null,
       p.key !== "readable" ? h("div.why", {}, "No key file: vaani key FLASH.bin") : null);

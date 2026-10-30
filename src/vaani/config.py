@@ -34,6 +34,7 @@ never a library pulled in here.
     person = "mahen"                         # who it answers as (when unsure)
     agent = "minder"
     people = ["mahen", "asha"]               # voices it may tell apart (optional)
+    agents = { asha = "helper" }             # someone's own agent here (optional)
     fresh_after = 30                         # minutes quiet, then a new conversation (0: never)
     wake_word = "hey_jarvis"                 # one the puck has; unset: as the puck is
 
@@ -55,6 +56,14 @@ Whisper and Piper and knows their addresses better than this file can:
 (``host.containers.internal``), and every 127.0.0.1 or localhost in
 the file is read as that. The pucks themselves are only ever the
 file's.
+
+EACH PERSON THEIR OWN AGENT. A puck in a shared room answers whoever
+it heard, and ``agents`` names the agent each of them gets there: Asha
+asks her own helper while Mahen's questions go to minder. Someone not
+named gets the puck's ``agent``, then ``[dvara] agent``. Whether that
+person may use that agent is still Dvara's to say. A name in ``agents``
+that isn't the puck's ``person`` or in its ``people`` is refused: the
+puck could never hear them, so the line is a mistake.
 
 UNKNOWN KEYS ARE ERRORS, as everywhere in this family: a misspelt
 ``persn`` must not quietly make a puck answer as nobody.
@@ -85,8 +94,8 @@ KNOWN = {
     "speak": {"host", "port", "voice"},
     "serve": {"address", "host", "port"},
     "page": {"host", "port"},
-    "puck": {"name", "host", "port", "key_file", "person", "agent", "people", "fresh_after",
-             "wake_word"},
+    "puck": {"name", "host", "port", "key_file", "person", "agent", "agents", "people",
+             "fresh_after", "wake_word"},
     "voices": {"threshold", "margin"},
 }
 
@@ -111,6 +120,12 @@ class Puck:
     #: The wake word Vaani switches the puck to when it connects (an id
     #: or a name the puck offers: hey_jarvis, "Hey Jarvis"); "" leaves it.
     wake_word: str = ""
+    #: Someone's own agent at this puck, as (person, agent) pairs.
+    agents: tuple[tuple[str, str], ...] = ()
+
+    def agent_for(self, person: str) -> str:
+        """The agent that answers ``person`` here; "" for the file's."""
+        return dict(self.agents).get(person) or self.agent
 
     def key(self) -> str:
         """The key, read when it's needed: a file only you can read."""
@@ -251,6 +266,8 @@ def parse(text: str, where: str = "vaani.toml") -> Config:
                               "Dvara's actors file, like [\"mahen\", \"asha\"]")
         pucks.append(Puck(name=name, host=str(row["host"]), key_file=str(row["key_file"]),
                           person=person, agent=str(row.get("agent", "")),
+                          agents=_agents(row.get("agents", {}), where, name,
+                                         {person, *people}),
                           port=_port(row.get("port", ESPHOME_PORT), where),
                           people=tuple(dict.fromkeys(people)),
                           fresh_after=_minutes(row.get("fresh_after", FRESH_AFTER), where,
@@ -295,10 +312,13 @@ def with_puck(text: str, name: str, changes: dict[str, str | int | list[str]]) -
         raise ConfigError(f"no puck called {name} in vaani.toml")
     start, end = block
     for key, value in changes.items():
-        if key not in ("person", "agent", "people", "fresh_after", "wake_word"):
+        if key not in ("person", "agent", "agents", "people", "fresh_after", "wake_word"):
             raise ConfigError(f"a puck's {key} isn't changed here")
+        table = (", ".join(f'{k} = "{v}"' for k, v in value.items())
+                 if isinstance(value, dict) else "")
         said = (f'{key} = [{", ".join(chr(34) + p + chr(34) for p in value)}]\n'
-                if isinstance(value, list) else f"{key} = {value}\n"
+                if isinstance(value, list) else
+                f"{key} = {{ {table} }}\n" if isinstance(value, dict) else f"{key} = {value}\n"
                 if isinstance(value, int) else f'{key} = "{value}"\n')
         found = next((i for i in range(start, end)
                       if re.match(rf"\s*{key}\s*=", lines[i])), None)
@@ -312,6 +332,19 @@ def with_puck(text: str, name: str, changes: dict[str, str | int | list[str]]) -
     out = "".join(lines)
     parse(out)                         # refused here, never half-written
     return out
+
+
+def _agents(value, where: str, puck: str, heard: set[str]) -> tuple[tuple[str, str], ...]:
+    if not isinstance(value, dict) or not all(
+            isinstance(k, str) and NAME.match(k) and isinstance(v, str) and NAME.match(v)
+            for k, v in value.items()):
+        raise ConfigError(f"{where}: puck {puck}: agents is a person's name and their "
+                          "agent's, like { asha = \"helper\" }")
+    stray = sorted(set(value) - heard)
+    if stray:
+        raise ConfigError(f"{where}: puck {puck}: agents names {', '.join(stray)}, who "
+                          "isn't its person or in its people, so it never hears them")
+    return tuple(value.items())
 
 
 def _wake_word(value, where: str, puck: str) -> str:

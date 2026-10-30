@@ -49,7 +49,8 @@ voice: it hears what is said to the puck and says the answer.
 * **Tells who is speaking**, when a puck lists `people`: a voice print
   per person, made by saying three sentences at the puck, matched on
   this computer by a small speaker model. A clear match answers as that
-  person, with their own agents and accounts; unsure, the puck's own
+  person, with their own accounts and their own agent (`agents` on the
+  puck); unsure, the puck's own
   `person` (make it one with the house's accounts only) answers, and the
   puck says it wasn't sure. *"This is Asha, …"* works with no model.
 * **Listens again when it asks you something**, no wake word, and
@@ -61,12 +62,13 @@ voice: it hears what is said to the puck and says the answer.
 * **Has a page of its own**: each puck, its questions step by step as
   they happen, voices and PINs.
 
-Not yet: a different agent per person on a shared puck; telling real
+Not yet: telling real
 family voices apart is untried (the numbers so far are synthetic
 voices); and *Hey Jarvis*, though the puck switches to it, never woke
 ours (firmware 26.9.0). See [notes/01](notes/01-a-voice-for-the-house.md)
 and [notes/02](notes/02-whose-question.md); the page's conversations,
-[notes/03](notes/03-the-conversations-on-the-page.md).
+[notes/03](notes/03-the-conversations-on-the-page.md); each person's
+own agent, [notes/04](notes/04-each-their-own-agent.md).
 
 ## Install
 
@@ -178,6 +180,7 @@ Each step can be tried on its own, with no puck speaking:
 vaani say "What's on my calendar tomorrow?" --out q.wav    # Piper
 vaani hear q.wav                                           # Whisper
 vaani ask "In one sentence: what day is it?"               # Dvara, as the puck's person
+vaani ask "hello" --person asha                            # as someone else it hears
 ```
 
 ## Settings: `~/.config/vaani/vaani.toml`
@@ -210,8 +213,9 @@ name = "kitchen"
 host = "192.168.1.55"
 key_file = "~/.config/vaani/kitchen.key"     # chmod 600, or Vaani refuses it
 person = "mahen"                             # from Dvara's actors file; unsure: this one
-agent = "minder"                             # an agent every one of its people may use
+agent = "minder"                             # who answers, unless someone has their own
 # people = ["mahen", "asha"]                 # voices it tells apart
+# agents = { asha = "helper" }               # someone's own agent here (one it hears)
 fresh_after = 30              # minutes quiet, then a new conversation (0: never)
 # wake_word = "hey_jarvis"    # one the puck has (okay_nabu, hey_jarvis, hey_mycroft)
 
