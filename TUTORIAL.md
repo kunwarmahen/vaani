@@ -171,7 +171,8 @@ answer first counts.
 A watch is asked in one sentence: what it's called, the site it looks
 at and how often, and when it tells you — *"Your agent wants to set up a
 watch called Phoenix nonstop under $571: it looks at google.com every 6
-hours, and tells you when the fare is below 571. Shall I go ahead?"*
+hours, and tells you when the fare is below 571. It runs until Sat 31 Oct
+23:59. Shall I go ahead?"* — a watch about a day says when it ends.
 
 Saying *"yes"* again while it's still working, with no question asked,
 doesn't start anything: the puck says *"I'm still working on that. If I

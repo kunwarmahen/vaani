@@ -32,6 +32,9 @@ looks at and how often, and when it tells you —
 Your agent wants to set up a watch called Phoenix nonstop under $571: it looks at google.com every 6 hours, and tells you when the fare is below 571. Shall I go ahead?
 ```
 
+A watch with days says them at the end: *"… below 571. It runs until
+Sat 31 Oct 23:59, and ends once the fare says 'Landed'"*.
+
 The card, with the exact call and what a yes allows, stays on the phone,
 where it can be read. What is said at the puck is what the person can
 judge by ear.

@@ -151,6 +151,10 @@ def test_a_watch_is_asked_in_a_sentence_not_read_as_its_card():
     assert watch_words(unnamed) == ("set up a watch: it looks at google.com every day, "
                                     "and tells you when the fare is below 571")
     assert watch_words("Run `ls`") is None
+    dated = CARD.replace("Then\n", "How long\n  until Sat 31 Oct 23:59, then it ends by "
+                                     "itself\n  ends once the fare says 'Landed'\nThen\n")
+    assert watch_words(dated).endswith(
+        "below 571. It runs until Sat 31 Oct 23:59, and ends once the fare says 'Landed'")
 
 
 def test_a_yes_while_a_turn_works_starts_nothing():

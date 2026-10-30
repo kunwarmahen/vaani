@@ -124,6 +124,15 @@ def watch_words(card: str) -> str | None:
         said += f": it looks at {where} {_every(step.removeprefix('every '))}"
     if when:
         said += f", and tells you when {when.removeprefix('now:').strip()}"
+    raw = card.splitlines()
+    if "How long" in raw:
+        span = []
+        for line in raw[raw.index("How long") + 1:]:
+            if not line.startswith("  "):
+                break
+            span.append(line.strip().replace(", then it ends by itself", ""))
+        if span:
+            said += ". It runs " + ", and ".join(span)
     return said
 
 
