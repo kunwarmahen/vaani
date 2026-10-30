@@ -168,6 +168,15 @@ ahead?"*, then listens. Say *"yes"* or *"no"* (*"go ahead"*, *"sure"*,
 once. The same question is on your phone as well, and whichever you
 answer first counts.
 
+A watch is asked in one sentence: what it's called, the site it looks
+at and how often, and when it tells you — *"Your agent wants to set up a
+watch called Phoenix nonstop under $571: it looks at google.com every 6
+hours, and tells you when the fare is below 571. Shall I go ahead?"*
+
+Saying *"yes"* again while it's still working, with no question asked,
+doesn't start anything: the puck says *"I'm still working on that. If I
+need a yes, I'll ask you here."*
+
 * **Only you can say yes to your question.** Once the puck knows your
   voice (Step 7), it asks you to say *"yes, go ahead"*, which is long
   enough to tell your voice from someone else's. Another person's yes

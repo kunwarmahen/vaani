@@ -74,14 +74,64 @@ def yes_or_no(text: str) -> bool | None:
 PLAIN = "Shall I go ahead?"
 BY_VOICE = "To say yes, say: yes, go ahead. Shall I?"
 BY_PIN = "That needs your PIN, said one digit at a time. Shall I?"
+#: Said to a yes or a no heard while a turn works with no question put:
+#: it answers nothing, and it starts nothing either.
+STILL_WORKING = ("I'm still working on that. If I need a yes, I'll ask you here.")
 #: Added before the end of a question Dvara lets one yes cover the rest of.
 TO_ALL = "Say yes to all to stop asking for the rest of this."
+
+
+#: How often a watch looks, as Prahari writes it ("6h"), said.
+_STEP = {"m": "minute", "h": "hour", "d": "day"}
+
+
+def _every(step: str) -> str:
+    match = re.fullmatch(r"(\d+)\s*([mhd])", step.strip())
+    if not match:
+        return f"every {step}"
+    n, unit = int(match.group(1)), _STEP[match.group(2)]
+    return f"every {unit}" if n == 1 else f"every {n} {unit}s"
+
+
+def watch_words(card: str) -> str | None:
+    """A watch's card (Yantra's ``New watch:`` form), said in a sentence:
+    its name, the site it looks at and how often, and when it tells you.
+    None for anything else.
+
+    A CARD IS FOR READING; A SENTENCE IS FOR HEARING. The card is a form
+    of several lines -- the exact call, its JSON, what a yes allows -- and
+    read out it is noise: "new watch, no name, every 6h, browser open,
+    curly brace url...". At a puck the person can't see the card, so what
+    they say yes to is this sentence, and the card stays on their phone."""
+    lines = [line.strip() for line in card.splitlines()]
+    if not lines or not lines[0].startswith("New watch:"):
+        return None
+    name = lines[0].removeprefix("New watch:").strip()
+
+    def after(head: str) -> str:
+        return lines[lines.index(head) + 1] if head in lines[:-1] else ""
+
+    looks = after("What it looks at, with no model")
+    step, _, call = looks.partition(": ")
+    site = re.search(r"https?://(?:www\.)?([^/\s\"?#]+)", call)
+    where = site.group(1) if site else "something"
+    heard = after("What it listens for")
+    when = after("Tells you when")
+    said = "set up a watch" + (f" called {name}" if name and name != "(no name)" else "")
+    if heard:
+        said += ": it listens for what's sent to it"
+    elif step.startswith("every "):
+        said += f": it looks at {where} {_every(step.removeprefix('every '))}"
+    if when:
+        said += f", and tells you when {when.removeprefix('now:').strip()}"
+    return said
 
 
 def spoken_question(ask: dict, how: str = PLAIN) -> str:
     """The question as the puck says it: a link is its site's name; ``how``
     says what answers it (a yes, a longer yes in the asker's voice, a PIN)."""
     summary = str(ask.get("summary") or ask.get("tool") or "do something")
+    summary = watch_words(summary) or summary
     summary = re.sub(r"https?://(?:www\.)?([^/\s]+)\S*", r"\1", summary)
     # a browser names a page's parts e14, e7: said, that's noise
     summary = re.sub(r"\b(click|press|tap|select|check)\s+e\d+\b", r"\1 something on the page",
@@ -118,6 +168,26 @@ class Waiting:
         """The page's line for it: whose, what, since when, waiting on what."""
         return {"person": self.person, "question": self.question, "since": self.since,
                 "asking": str((self.ask or {}).get("summary") or "")}
+
+
+def route(held: Waiting | None, text: str, follows: str = "",
+          digits: bool = False) -> str:
+    """What the puck's next words are: "answer" (to the question it put),
+    "busy" (a yes or a no while a turn works, with no question put), or
+    "new" (a question of their own).
+
+    A YES WITH NOTHING TO ANSWER IS NOT A NEW TURN. A turn still working
+    may ask next; sent as a turn of its own on the same conversation,
+    "yes, yes, yes" does again what the first turn is doing -- it made a
+    second watch on the same flights page. So it is said and dropped."""
+    if held is None:
+        return "new"
+    if held.ask is not None and (follows == held.person or yes_or_no(text) is not None
+                                 or (held.ask.get("always_ask") and digits)):
+        return "answer"
+    if not held.job.done() and yes_or_no(text) is not None:
+        return "busy"
+    return "new"
 
 
 async def outcome(waiting: Waiting, *, asks: Callable[[], Awaitable[list[dict]]],

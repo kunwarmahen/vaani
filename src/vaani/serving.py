@@ -27,10 +27,12 @@ from vaani.waiting import (
     BY_VOICE,
     LONG,
     PLAIN,
+    STILL_WORKING,
     Waiting,
     for_the_task,
     judge,
     outcome,
+    route,
     spoken_question,
     yes_or_no,
 )
@@ -116,12 +118,15 @@ async def serve(conf: Config) -> int:
     async def answer(puck: Puck, text: str, wav: bytes, said: Said) -> str:
         now, puck = fresh(puck)
         held = flying.get(puck.name)
-        if held is not None and held.ask is not None and (
-                said.follows == held.person or yes_or_no(text) is not None
-                or (held.ask.get("always_ask") and len(heard_digits(text)) >= SHORTEST)):
+        way = route(held, text, said.follows, len(heard_digits(text)) >= SHORTEST)
+        if way == "answer":
             said.person, said.how = held.person, "answering its question"
             said.tell()
             return await replied(puck, held, text, wav, said)
+        if way == "busy":
+            said.person, said.how = held.person, "a yes while it works"
+            said.tell()
+            return STILL_WORKING
         asked = await asyncio.to_thread(asking.whose, now, puck, text, wav, prints,
                                         said.follows)
         said.person, said.how = asked.person, asked.how

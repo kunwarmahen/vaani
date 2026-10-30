@@ -14,7 +14,7 @@ import asyncio
 
 from vaani import waiting
 from vaani.waiting import (BY_PIN, PLAIN, Waiting, for_the_task, outcome,
-                           spoken_question, yes_or_no)
+                           route, spoken_question, watch_words, yes_or_no)
 
 
 def test_only_a_clear_yes_is_a_yes():
@@ -123,3 +123,47 @@ def test_yes_to_all_is_offered_only_where_dvara_offers_it():
     assert "yes to all" in offered and offered.endswith("Shall I?")
     assert "yes to all" not in spoken_question({"summary": "Fill e3"}, BY_PIN)
     assert "yes to all" in spoken_question({"summary": "x", "for_turn": True}, PLAIN)
+
+
+CARD = """New watch: Phoenix nonstop under $571
+  you asked: "keep an eye on the nonstop to Phoenix"
+
+What it looks at, with no model
+  every 6h: browser_open {"url": "https://www.google.com/travel/flights?tfs=CBwQ"}
+Tells you when
+  the fare is below 571
+  now: It sees 571 now: no match yet.
+Then
+  you get a line saying what it saw; no model is asked
+
+At most 10 times a day."""
+
+
+def test_a_watch_is_asked_in_a_sentence_not_read_as_its_card():
+    """At the puck the card can't be seen: the yes is to what is heard."""
+    said = spoken_question({"summary": CARD})
+    assert said == ("Your agent wants to set up a watch called Phoenix nonstop under "
+                    "$571: it looks at google.com every 6 hours, and tells you when the "
+                    "fare is below 571. Shall I go ahead?")
+    assert "{" not in said and "browser_open" not in said
+    unnamed = CARD.replace("Phoenix nonstop under $571", "(no name)").replace(
+        "every 6h", "every 1d")
+    assert watch_words(unnamed) == ("set up a watch: it looks at google.com every day, "
+                                    "and tells you when the fare is below 571")
+    assert watch_words("Run `ls`") is None
+
+
+def test_a_yes_while_a_turn_works_starts_nothing():
+    """"Yes!" then "yes, yes, yes" made two watches: the second yes, with no
+    question put, was sent as a turn of its own on the same conversation."""
+    async def go():
+        loop = asyncio.get_running_loop()
+        working = Waiting("mahen", "minder", "vaani:kitchen", loop.create_future())
+        asking = Waiting("mahen", "minder", "vaani:kitchen", loop.create_future(),
+                         ask={"id": "a1", "summary": CARD})
+        done = Waiting("mahen", "minder", "vaani:kitchen", loop.create_future())
+        done.job.set_result({"text": "Done."})
+        return [route(working, "Yes, yes, yes."), route(working, "no"),
+                route(working, "what's the weather"), route(asking, "Yes, yes, yes."),
+                route(done, "yes"), route(None, "yes")]
+    assert asyncio.run(go()) == ["busy", "busy", "new", "answer", "new", "new"]

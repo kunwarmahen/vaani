@@ -117,6 +117,14 @@ looks for its questions on the puck's conversation (Dvara's `GET
 /asks`) and puts each to the person: *"Your agent wants to open
 google.com. Shall I go ahead?"*. Their clear yes or no goes back
 (`POST /asks/ID`); Telegram has it too, and the first answer counts.
+A watch is asked in a sentence, not read as its card: *"Your agent
+wants to set up a watch called Phoenix nonstop under $571: it looks at
+google.com every 6 hours, and tells you when the fare is below 571.
+Shall I go ahead?"* A yes or a no heard while a turn works with no
+question put answers nothing and starts nothing: *"I'm still working on
+that. If I need a yes, I'll ask you here."* — sent as a turn of its own,
+"yes, yes, yes" once made a second watch on the same page
+([notes/05](notes/05-what-a-yes-is-to.md)).
 After a minute the puck says it's still working; the answer, and any
 question on the way, come later as announcements (the puck listens
 after a question). A yes counts in the asker's voice when the puck knows
