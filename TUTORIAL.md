@@ -258,7 +258,9 @@ one conversation per puck per person (*what's the weather tomorrow? ·
 🔊 kitchen · mahen · 4 min ago*); pick one to read it on the right.
 **Steps** under an answer shows how it went. You can't write there: to
 carry a conversation on in writing, open Sarathi's home page, where
-it's in that person's list marked 🔊.
+it's in that person's list marked 🔊. It shows there without a reload,
+within about 20 seconds of the question: the question first, and the
+answer once the puck has it.
 
 The **Setup** tab shows:
 

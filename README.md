@@ -147,7 +147,8 @@ Sarathi, its card under Your pages). **Conversations**, its first tab,
 is what was asked at each puck and what was said back, read as a chat:
 one conversation per puck per person, until a quiet spell started the
 next, each answer's steps folded under it; to carry one on in writing,
-it's in the person's list on Sarathi's home page, marked 🔊
+it's in the person's list on Sarathi's home page, marked 🔊, which
+picks it up by itself within about 20 seconds
 ([notes/03](notes/03-the-conversations-on-the-page.md)). **Setup** has
 each puck listening or why not, the last questions step by step, live
 from the wake word (woken, heard, whose, each step's time, played or
