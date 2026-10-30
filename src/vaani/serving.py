@@ -153,7 +153,7 @@ async def serve(conf: Config) -> int:
     def words_of(held: Waiting, got: dict | str | None) -> str:
         if isinstance(got, str):
             return got
-        return str((got or {}).get("text") or "")
+        return dvara.words(got or {})
 
     async def follow(puck: Puck, held: Waiting) -> dict | str:
         """What to say now: the answer, a question to put, or that it's

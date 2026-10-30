@@ -171,3 +171,13 @@ def test_a_yes_while_a_turn_works_starts_nothing():
                 route(working, "what's the weather"), route(asking, "Yes, yes, yes."),
                 route(done, "yes"), route(None, "yes")]
     assert asyncio.run(go()) == ["busy", "busy", "new", "answer", "new", "new"]
+
+
+def test_what_the_agent_kept_is_one_short_sentence_not_its_number():
+    from vaani import dvara
+    assert dvara.words({"text": "Noted."}) == "Noted."
+    one = {"text": "Noted.", "kept": [{"id": "2ad6b855", "statement": "Lives near RDU"}]}
+    assert dvara.words(one) == "Noted. I've also kept that about you."
+    two = {"text": "Noted.", "kept": [{"id": "1", "statement": "a"},
+                                      {"id": "2", "statement": "b"}]}
+    assert dvara.words(two) == "Noted. I've also kept 2 things about you."

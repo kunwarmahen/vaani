@@ -31,6 +31,21 @@ class DvaraError(Exception):
     pass
 
 
+def words(answer: dict) -> str:
+    """What the puck says for an answer: its words, then -- when the agent
+    kept something about the person on its own -- one short sentence
+    saying so. Dvara sends what was kept beside the words (``kept``), with
+    an id that is for a screen; read aloud, the line would be a number
+    nobody can use. The facts and the Undo are in the chat."""
+    text = str(answer.get("text") or "")
+    kept = answer.get("kept") or []
+    if not kept:
+        return text
+    said = ("I've also kept that about you." if len(kept) == 1
+            else f"I've also kept {len(kept)} things about you.")
+    return f"{text} {said}".strip()
+
+
 def thread(puck: str) -> str:
     return f"{KIND}:{puck}"
 
