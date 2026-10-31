@@ -76,8 +76,12 @@ class Satellite:
                  done: Callable[[str, str, Said], None] = lambda _p, _w, _s: None,
                  begun: Callable[[str, str, Said], None] = lambda _p, _w, _s: None,
                  noted: Callable[[], None] = lambda: None,
-                 seconds_of: Callable[[str], float] = lambda _url: 0.0) -> None:
+                 seconds_of: Callable[[str], float] = lambda _url: 0.0,
+                 follow_up: Callable[[], bool] = lambda: False) -> None:
         self.seconds_of = seconds_of
+        #: whether the puck listens after every answer, asked at each run so
+        #: a change in vaani.toml holds from the next question
+        self.follow_up = follow_up
         self.puck = puck
         self.noted = noted
         #: {"offers": [names], "on": [names]}: the puck's wake words, as it says
@@ -88,9 +92,10 @@ class Satellite:
         self.run: Run | None = None
         self._job: asyncio.Task | None = None
         self.connected = asyncio.Event()
-        #: (person, when the puck will have finished saying it) after words
-        #: that asked something back: a run starting soon after is the reply
-        self.following: tuple[str, float] | None = None
+        #: (person, when the puck will have finished saying it, whether the
+        #: words asked something back) after an answer the puck listens
+        #: after: a run starting soon after is that person's
+        self.following: tuple[str, float, bool] | None = None
 
     async def keep(self) -> None:
         """Connect, listen, and connect again, until cancelled."""
@@ -195,7 +200,7 @@ class Satellite:
         if client is None or not self.connected.is_set():
             return False
         if listen_for:                 # until it's said, and then some
-            self.following = (listen_for, time.monotonic() + ANNOUNCE_WITHIN)
+            self.following = (listen_for, time.monotonic() + ANNOUNCE_WITHIN, True)
         try:
             await client.send_voice_assistant_announcement_await_response(
                 url, ANNOUNCE_WITHIN, text=words, start_conversation=bool(listen_for))
@@ -203,7 +208,7 @@ class Satellite:
             log.warning("%s: couldn't say it: %s", self.puck.name, exc)
             return False
         if listen_for and self.following and self.following[0] == listen_for:
-            self.following = (listen_for, time.monotonic())    # said: it listens now
+            self.following = (listen_for, time.monotonic(), True)  # said: it listens now
         return True
 
     async def _start(self, conversation_id: str, flags: int,
@@ -212,10 +217,11 @@ class Satellite:
             self.run.stop()
         run = Run(send=self._send, hear=self.hear,
                   answer=lambda text, wav, said: self.answer(self.puck, text, wav, said),
-                  speak=self.speak)
+                  speak=self.speak, follow_up=self.follow_up())
         following, self.following = self.following, None
         if following and time.monotonic() - following[1] < FOLLOW_WITHIN:
             run.said.follows = following[0]
+            run.said.open_follow = not following[2]
         self.run = run
         woke = "a reply" if run.said.follows else (wake_word or "")
         log.info("%s: %s", self.puck.name, f"listening again for {run.said.follows}'s reply"
@@ -224,10 +230,11 @@ class Satellite:
 
         async def go() -> None:
             said = await run.go()
-            if said.asked_back and said.person:
+            if said.listens and said.person:
                 # the puck starts saying it now; it listens once it's done
                 self.following = (said.person,
-                                  time.monotonic() + self.seconds_of(said.url))
+                                  time.monotonic() + self.seconds_of(said.url),
+                                  said.asked_back)
             self.done(self.puck.name, woke, said)
             log.info("%s: %s -- heard %r, answered %r%s", self.puck.name, said.ended,
                      "(a PIN)" if said.secret else said.heard, said.answer[:80],

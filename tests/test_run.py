@@ -29,7 +29,8 @@ def tone(seconds: float, level: int = 6000) -> bytes:
     return array.array("h", (int(level * math.sin(i / 5)) for i in range(n))).tobytes()
 
 
-def drive(sound: bytes, *, hear=None, answer=None, speak=None, **listen):
+def drive(sound: bytes, *, hear=None, answer=None, speak=None, follow_up=False,
+          open_follow=False, **listen):
     events: list[tuple[str, dict]] = []
     asked: list[str] = []
 
@@ -47,7 +48,8 @@ def drive(sound: bytes, *, hear=None, answer=None, speak=None, **listen):
         run = Run(send=lambda e, d: events.append((e.name.removeprefix("VOICE_ASSISTANT_"),
                                                    d or {})),
                   hear=hear or heard, answer=answer or answered, speak=speak or spoken,
-                  listen=EndOfSpeech(**listen), stall=0.2)
+                  listen=EndOfSpeech(**listen), stall=0.2, follow_up=follow_up)
+        run.said.open_follow = open_follow
         task = asyncio.create_task(run.go())
         for at in range(0, len(sound), 960):
             run.feed(sound[at:at + 960])
@@ -151,6 +153,44 @@ def test_an_answer_that_asks_back_keeps_the_puck_listening():
     said, events, _ = drive(QUIET * 10 + tone(1.0) + QUIET * 40)       # "Sunny, see ..."
     assert not said.asked_back
     assert dict(events)["INTENT_END"] == {"continue_conversation": "0"}
+
+
+def test_a_puck_that_follows_up_listens_after_every_answer():
+    said, events, _ = drive(QUIET * 10 + tone(1.0) + QUIET * 40, follow_up=True)
+    assert not said.asked_back and said.listens
+    assert dict(events)["INTENT_END"] == {"continue_conversation": "1"}
+
+
+def test_nothing_heard_after_an_answer_ends_quietly():
+    async def nothing(_wav):
+        return ""
+    said, events, asked = drive(QUIET * 10 + tone(1.0) + QUIET * 40, hear=nothing,
+                                open_follow=True)
+    assert asked == [] and "TTS_START" not in kinds(events)
+    assert said.error.endswith("nothing more was asked")
+    # the wake word's own run still says it couldn't make anything out
+    said, events, _ = drive(QUIET * 10 + tone(1.0) + QUIET * 40, hear=nothing)
+    assert dict(events)["TTS_START"] == {"text": COULDNT_HEAR}
+
+
+def test_done_talking_is_ended_not_answered():
+    async def closing(_text, _wav, said):
+        said.closing = True
+        return ""
+    said, events, _ = drive(QUIET * 10 + tone(1.0) + QUIET * 40, answer=closing,
+                            follow_up=True, open_follow=True)
+    assert "TTS_START" not in kinds(events) and not said.listens
+    assert dict(events)["INTENT_END"] == {"continue_conversation": "0"}
+
+
+def test_only_the_whole_of_what_was_said_is_done_talking():
+    from vaani.asking import done_talking
+    for said in ("Thanks.", "Thank you very much", "That's all", "no, thank you",
+                 "Okay, bye", "nothing else", "Never mind", "I'm good"):
+        assert done_talking(said), said
+    for said in ("thanks, and what about tomorrow?", "stop the music",
+                 "no I meant the porch light", "is that all the mail?"):
+        assert not done_talking(said), said
 
 
 def test_only_the_whole_of_what_was_said_starts_over():

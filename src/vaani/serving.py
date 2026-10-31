@@ -127,6 +127,11 @@ async def serve(conf: Config) -> int:
             said.person, said.how = held.person, "a yes while it works"
             said.tell()
             return STILL_WORKING
+        if said.open_follow and asking.done_talking(text):
+            # "thanks, that's all" after an answer: ended, nobody asked
+            said.person, said.how, said.closing = said.follows, "done talking", True
+            said.tell()
+            return ""
         asked = await asyncio.to_thread(asking.whose, now, puck, text, wav, prints,
                                         said.follows)
         said.person, said.how = asked.person, asked.how
@@ -360,7 +365,8 @@ async def serve(conf: Config) -> int:
                                  current.name, person, current.fresh_after)
 
     satellites += [Satellite(p, hear=hear, answer=answer, speak=speak, told=told, done=done,
-                             begun=begun, noted=write, seconds_of=clips.seconds)
+                             begun=begun, noted=write, seconds_of=clips.seconds,
+                             follow_up=lambda p=p: fresh(p)[1].follow_up)
                    for p in conf.pucks]
     try:
         await asyncio.gather(freshen(), *(s.keep() for s in satellites))

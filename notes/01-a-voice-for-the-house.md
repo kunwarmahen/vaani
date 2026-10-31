@@ -243,7 +243,8 @@ played.
   flight (`working`: whose, what, since when, the question it waits on),
   the page shows it on top, and the answer said later is recorded under
   the question it answers.
-* ~~**A follow-up without the wake word.**~~ An answer whose last
+* ~~**A follow-up without the wake word.**~~ (After every answer, on a
+  puck set to follow up: [notes/06](06-the-next-question.md).) An answer whose last
   sentence is a question ends its intent with `continue_conversation:
   "1"`; the puck says it, then starts a run with no wake word. Within
   two minutes such a run is the reply of whoever was asked -- no voice

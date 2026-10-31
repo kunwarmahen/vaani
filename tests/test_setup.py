@@ -244,6 +244,18 @@ def test_a_quiet_spell_is_minutes_and_set_in_place():
             parse(text + f"fresh_after = {wrong}\n")
 
 
+def test_following_up_is_a_switch_off_until_set_and_written_in_place():
+    from vaani.config import with_puck
+    text = GOOD.format(key="k")
+    assert parse(text).puck("kitchen").follow_up is False
+    after = with_puck(text, "kitchen", {"follow_up": True})
+    assert "follow_up = true\n" in after and parse(after).puck("kitchen").follow_up
+    after = with_puck(after, "kitchen", {"follow_up": False})
+    assert "follow_up = false\n" in after and not parse(after).puck("kitchen").follow_up
+    with pytest.raises(ConfigError, match="follow_up is true or false"):
+        parse(text + 'follow_up = "yes"\n')
+
+
 def test_the_wake_word_is_switched_only_to_one_the_puck_has(caplog):
     import asyncio
 

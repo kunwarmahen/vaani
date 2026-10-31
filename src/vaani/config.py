@@ -37,6 +37,7 @@ never a library pulled in here.
     agents = { asha = "helper" }             # someone's own agent here (optional)
     fresh_after = 30                         # minutes quiet, then a new conversation (0: never)
     wake_word = "hey_jarvis"                 # one the puck has; unset: as the puck is
+    follow_up = true                         # listens again after each answer, no wake word
 
     [voices]                                 # telling voices apart (optional)
     threshold = 0.6
@@ -95,7 +96,7 @@ KNOWN = {
     "serve": {"address", "host", "port"},
     "page": {"host", "port"},
     "puck": {"name", "host", "port", "key_file", "person", "agent", "agents", "people",
-             "fresh_after", "wake_word"},
+             "fresh_after", "wake_word", "follow_up"},
     "voices": {"threshold", "margin"},
 }
 
@@ -122,6 +123,10 @@ class Puck:
     wake_word: str = ""
     #: Someone's own agent at this puck, as (person, agent) pairs.
     agents: tuple[tuple[str, str], ...] = ()
+    #: After every answer the puck listens again for a few seconds, no wake
+    #: word, and what is said is the same person's next question. Off: only
+    #: an answer that asks something back is listened after.
+    follow_up: bool = False
 
     def agent_for(self, person: str) -> str:
         """The agent that answers ``person`` here; "" for the file's."""
@@ -272,7 +277,9 @@ def parse(text: str, where: str = "vaani.toml") -> Config:
                           people=tuple(dict.fromkeys(people)),
                           fresh_after=_minutes(row.get("fresh_after", FRESH_AFTER), where,
                                                name),
-                          wake_word=_wake_word(row.get("wake_word", ""), where, name)))
+                          wake_word=_wake_word(row.get("wake_word", ""), where, name),
+                          follow_up=_switch(row.get("follow_up", False), where, name,
+                                            "follow_up")))
     base = Config()
     return Config(
         dvara_url=str(d.get("url", base.dvara_url)).rstrip("/"),
@@ -312,14 +319,16 @@ def with_puck(text: str, name: str, changes: dict[str, str | int | list[str]]) -
         raise ConfigError(f"no puck called {name} in vaani.toml")
     start, end = block
     for key, value in changes.items():
-        if key not in ("person", "agent", "agents", "people", "fresh_after", "wake_word"):
+        if key not in ("person", "agent", "agents", "people", "fresh_after", "wake_word",
+                       "follow_up"):
             raise ConfigError(f"a puck's {key} isn't changed here")
         table = (", ".join(f'{k} = "{v}"' for k, v in value.items())
                  if isinstance(value, dict) else "")
         said = (f'{key} = [{", ".join(chr(34) + p + chr(34) for p in value)}]\n'
                 if isinstance(value, list) else
-                f"{key} = {{ {table} }}\n" if isinstance(value, dict) else f"{key} = {value}\n"
-                if isinstance(value, int) else f'{key} = "{value}"\n')
+                f"{key} = {{ {table} }}\n" if isinstance(value, dict) else
+                f"{key} = {'true' if value else 'false'}\n" if isinstance(value, bool) else
+                f"{key} = {value}\n" if isinstance(value, int) else f'{key} = "{value}"\n')
         found = next((i for i in range(start, end)
                       if re.match(rf"\s*{key}\s*=", lines[i])), None)
         if found is not None:
@@ -345,6 +354,12 @@ def _agents(value, where: str, puck: str, heard: set[str]) -> tuple[tuple[str, s
         raise ConfigError(f"{where}: puck {puck}: agents names {', '.join(stray)}, who "
                           "isn't its person or in its people, so it never hears them")
     return tuple(value.items())
+
+
+def _switch(value, where: str, puck: str, key: str) -> bool:
+    if not isinstance(value, bool):
+        raise ConfigError(f"{where}: puck {puck}: {key} is true or false")
+    return value
 
 
 def _wake_word(value, where: str, puck: str) -> str:

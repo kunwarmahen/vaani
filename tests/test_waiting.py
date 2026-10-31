@@ -93,7 +93,7 @@ def test_a_reply_is_told_by_timing_not_by_the_wake_word_the_puck_reports(monkeyp
         "go": lambda s: asyncio.sleep(3600)})())
 
     async def go(following_at):
-        sat.following = ("owner", following_at)
+        sat.following = ("owner", following_at, True)
         sat.run = None
         await sat._start("", 0, None, "Okay Nabu")
         starts.append(sat.run.said.follows)
@@ -223,3 +223,42 @@ def test_what_the_agent_kept_is_one_short_sentence_not_its_number():
     two = {"text": "Noted.", "kept": [{"id": "1", "statement": "a"},
                                       {"id": "2", "statement": "b"}]}
     assert dvara.words(two) == "Noted. I've also kept 2 things about you."
+
+
+def test_after_an_answer_that_asked_nothing_the_next_run_is_an_open_follow(monkeypatch):
+    """A puck that follows up: the run after a plain answer is the same
+    person's, marked open (nothing heard ends it quietly); after an answer
+    that asked back it is their reply, as before."""
+    import time as clock
+
+    from vaani import satellite
+    from vaani.config import Puck
+
+    class Quiet:
+        def send_voice_assistant_event(self, *_a):
+            pass
+
+    sat = satellite.Satellite(Puck("kitchen", "h", "k", "owner"), hear=None,
+                              answer=None, speak=None, follow_up=lambda: True)
+    sat.client = Quiet()
+    made = []
+
+    def run(**kw):
+        made.append(kw)
+        return type("R", (), {"said": __import__("vaani.run", fromlist=["Said"]).Said(),
+                              "stop": lambda s: None,
+                              "go": lambda s: asyncio.sleep(3600)})()
+    monkeypatch.setattr(satellite, "Run", run)
+
+    async def go(asked_back):
+        sat.following = ("owner", clock.monotonic(), asked_back)
+        sat.run = None
+        await sat._start("", 0, None, "Okay Nabu")
+        sat._job.cancel()
+        return sat.run.said
+
+    plain = asyncio.run(go(False))
+    assert plain.follows == "owner" and plain.open_follow
+    reply = asyncio.run(go(True))
+    assert reply.follows == "owner" and not reply.open_follow
+    assert made[0]["follow_up"] is True

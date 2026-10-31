@@ -364,7 +364,7 @@ function workingNow(p) {
   const mins = Math.max(0, Math.round((Date.now() / 1000 - w.since) / 60));
   return h("li.run.live", {},
     h("div.top", {}, h("span.puckname", {}, p.name), h("span.when", {}, `${mins} min so far`)),
-    h("div.heard", {}, "“", w.question, "”"),
+    h("div.heard", {}, "🎤 “", w.question, "”"),
     h("div.steps", {}, h("span.step", {}, `for ${w.person}`), h("span.arrow", {}, "→"),
       w.asking ? h("span.step.now", {}, "waiting for your yes", h("small", {}, ` ${w.asking}`))
                : h("span.step.now", {}, "agent still working…"),
@@ -383,7 +383,7 @@ function drawRuns(runs, working) {
     const said = r.error && !r.answer ? r.error : r.answer;
     return h(`li.run${r.live ? ".live" : ""}`, {},
       h("div.top", {}, h("span.puckname", {}, r.puck || "?"), h("span.when", {}, ago(r.at))),
-      r.heard ? h("div.heard", {}, "“", r.heard, "”") : null,
+      r.heard ? h("div.heard", {}, "🎤 “", r.heard, "”") : null,
       said ? h(`div.${r.error ? "error" : "answer"}`, {}, "→ ", said) : null,
       stepsRow(steps));
   }));
@@ -493,7 +493,7 @@ function drawTalks(runs, working) {
     const steps = h("details", {}, h("summary", {}, "Steps"), stepsRow(runSteps(r)));
     return [
       h("div.said-line.you", {}, h("span.who", {}, `${c.person || "someone"} · ${ago(r.at)}`),
-        h("div.words", {}, r.heard)),
+        h("div.words", {}, r.heard ? `🎤 “${r.heard}”` : "")),
       h("div.said-line.agent", {}, h("span.who", {}, "Answer"),
         said ? h(`div.words${r.error && !r.answer ? ".bad" : ""}`, {}, said)
           : h("div.words", {}, r.live ? "…" : "(no answer)"),

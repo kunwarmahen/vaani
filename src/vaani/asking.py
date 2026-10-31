@@ -44,6 +44,22 @@ NEW_WORDS = re.compile(
     r"(?:,? please)?$")
 
 
+#: The whole of what was said, after an answer the puck listened on:
+#: they're done. Whisper also writes "Thank you." for a room's noise, so a
+#: closing is never answered, only ended.
+DONE_WORDS = re.compile(
+    r"^(?:ok(?:ay)?,? |great,? |good,? |perfect,? )?"
+    r"(?:thanks?(?: you)?(?: very much| so much)?|that'?s (?:all|it|enough)|nothing(?: else)?"
+    r"|no(?:,? thanks?(?: you)?)?|nope|never ?mind|stop|bye|goodbye|i'?m (?:done|good)"
+    r"|that'?ll do|all good)(?:,? (?:thanks?(?: you)?|bye))?$")
+
+
+def done_talking(text: str) -> bool:
+    """"Thanks", "that's all", "no, thank you", "okay, bye"."""
+    words = re.sub(r"[^\w' ,]", "", text.lower()).strip(" ,")
+    return bool(DONE_WORDS.match(words))
+
+
 def starts_over(text: str) -> bool:
     """"New conversation", "start over", "let's start fresh, please"."""
     words = re.sub(r"[^\w' ,]", "", text.lower()).strip(" ,")

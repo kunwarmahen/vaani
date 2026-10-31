@@ -68,6 +68,10 @@ and a tap showed the conversation with *← All conversations*. Setup
 showed the pucks and the step-by-step list, the silent wake in red
 (*nothing said*).
 
+What a person said is on their own line as 🎤 *"…"*, the way Sarathi's
+chat and Dvara's runs list show a voice question: the words they said,
+marked as heard, above the answer.
+
 ## Tests
 
 `tests/test_page.py`: the page's script parses and has both tabs; the

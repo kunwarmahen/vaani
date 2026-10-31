@@ -68,7 +68,8 @@ voices); and *Hey Jarvis*, though the puck switches to it, never woke
 ours (firmware 26.9.0). See [notes/01](notes/01-a-voice-for-the-house.md)
 and [notes/02](notes/02-whose-question.md); the page's conversations,
 [notes/03](notes/03-the-conversations-on-the-page.md); each person's
-own agent, [notes/04](notes/04-each-their-own-agent.md).
+own agent, [notes/04](notes/04-each-their-own-agent.md); the next
+question with no wake word, [notes/06](notes/06-the-next-question.md).
 
 ## Install
 
@@ -150,7 +151,12 @@ words, so Vaani reads and sets them on its own connection.
 
 **Talking back, starting over.** An answer that ends with a question
 keeps the puck listening, no wake word: the reply is the same person's,
-in the same conversation. *"New conversation"* or *"start over"* starts
+in the same conversation. A puck set to **follow up** (`follow_up =
+true`, `vaani puck kitchen --follow-up on`, or Sarathi's Settings →
+Vaani) listens again after every answer: the next thing said is the same
+person's next question, and silence or *"thanks, that's all"* ends it
+with nothing said back. Off by default: an open microphone hears the
+radio too ([notes/06](notes/06-the-next-question.md)). *"New conversation"* or *"start over"* starts
 the puck's conversation with that person afresh (Dvara's `/new`), and
 so does a quiet spell: `fresh_after` minutes (30; 0 for never) with no
 question from them there, done in the background so the next question
@@ -231,6 +237,7 @@ agent = "minder"                             # who answers, unless someone has t
 # agents = { asha = "helper" }               # someone's own agent here (one it hears)
 fresh_after = 30              # minutes quiet, then a new conversation (0: never)
 # wake_word = "hey_jarvis"    # one the puck has (okay_nabu, hey_jarvis, hey_mycroft)
+# follow_up = true            # listen again after every answer, no wake word
 
 # [voices]
 # threshold = 0.6                            # this close to a print to be that person
@@ -267,7 +274,7 @@ src/vaani/
 ├── dvara.py      the words to the person's agent (POST /message), and what to
 │                 say back: the answer, plus one sentence when it kept something
 ├── voices.py     who is speaking: a print per person, a small model, sure or the house
-├── asking.py     whose question it is, or a sample for a print made at the puck
+├── asking.py     whose question it is, or a sample for a print made at the puck; "thanks, that's all" after an answer ends it (notes/06)
 ├── clips.py      answers kept a few minutes, served by name to the puck
 ├── flac.py       an answer as the puck plays it: FLAC, 48 kHz, no library
 ├── pins.py       spoken PINs: kept as hashes, heard as digits, few tries
@@ -287,7 +294,7 @@ src/vaani/
 ## Tests
 
 ```
-uv run pytest -q        # 52 passed
+uv run pytest -q        # 74 passed
 ```
 
 ## License

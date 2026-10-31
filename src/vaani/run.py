@@ -20,6 +20,11 @@ event, so the ring stops). Whisper or Dvara not answering is spoken --
 "I couldn't reach your agent" -- when Piper can still speak; when it
 can't either, the error event is all there is.
 
+AFTER AN ANSWER, QUIET IS NOT A FAILURE. A run the puck started on its
+own after an answer (``open_follow``: a puck that follows up) that hears
+nothing, or only "thanks, that's all", ends with nothing said; the wake
+word's own run still says it couldn't make anything out (notes/06).
+
 The answer is given the sound as well as the words, so who is speaking
 can be told from it (``voices.py``) before anyone is asked.
 
@@ -68,6 +73,15 @@ class Said:
     follows: str = ""
     #: this answer asked something back: the puck listens again, no wake word
     asked_back: bool = False
+    #: the puck listens again after this answer (it asked back, or the puck
+    #: follows up after every answer)
+    listens: bool = False
+    #: this run is the puck listening after an answer that asked nothing:
+    #: nothing heard ends it quietly, never "I couldn't make out any words"
+    open_follow: bool = False
+    #: the person said they were done ("thanks", "that's all"): nothing is
+    #: said back, and the puck stops listening
+    closing: bool = False
     #: called as each step ends, so a record can follow the run live
     changed: Callable[[], None] = field(default=lambda: None, repr=False, compare=False)
     record_id: str = ""
@@ -93,8 +107,10 @@ class Run:
                  hear: Callable[[bytes], Awaitable[str]],
                  answer: Callable[[str, bytes, Said], Awaitable[str]],
                  speak: Callable[[str], Awaitable[str]],
-                 listen: EndOfSpeech | None = None, stall: float = STALL) -> None:
+                 listen: EndOfSpeech | None = None, stall: float = STALL,
+                 follow_up: bool = False) -> None:
         self.send, self.hear, self.answer, self.speak = send, hear, answer, speak
+        self.follow_up = follow_up
         self.listen = listen or EndOfSpeech()
         self.stall = stall
         self._sound: asyncio.Queue[bytes | None] = asyncio.Queue()
@@ -127,6 +143,9 @@ class Run:
             self.said.heard = heard
             self._took("hear", began)
             self.said.tell()
+            if not heard and self.said.open_follow:
+                self.send(Ev.VOICE_ASSISTANT_STT_END, {"text": ""})
+                return self._fail("stt-no-text-recognized", "nothing more was asked")
             if not heard:
                 self.send(Ev.VOICE_ASSISTANT_STT_END, {"text": ""})
                 return await self._say_failed("stt-no-text-recognized", None, COULDNT_HEAR)
@@ -140,12 +159,19 @@ class Run:
                 return await self._say_failed("intent-failed", exc, COULDNT_REACH)
             self._took("agent", began)
             self.said.answer = said
+            if self.said.closing:
+                # "thanks, that's all" after an answer: nothing to say back
+                self.said.tell()
+                self.send(Ev.VOICE_ASSISTANT_INTENT_END, {"continue_conversation": "0"})
+                return self.said
             # an answer that ends with a question is answered without the wake
-            # word: the puck listens again once it has said it
+            # word: the puck listens again once it has said it -- after every
+            # answer, on a puck that follows up
             self.said.asked_back = asks_back(aloud(said))
+            self.said.listens = self.said.asked_back or self.follow_up
             self.said.tell()
             self.send(Ev.VOICE_ASSISTANT_INTENT_END,
-                      {"continue_conversation": "1" if self.said.asked_back else "0"})
+                      {"continue_conversation": "1" if self.said.listens else "0"})
             await self._speak(said)
             return self.said
         finally:

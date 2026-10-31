@@ -107,6 +107,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--wake-word", dest="wake_word", default=None,
                    help="one the puck offers (okay_nabu, hey_jarvis, hey_mycroft); applied "
                    "when Vaani next connects to it")
+    p.add_argument("--follow-up", dest="follow_up", choices=("on", "off"), default=None,
+                   help="on: after every answer the puck listens again for the same "
+                   "person's next question, no wake word")
     p = sub.add_parser("runs", help="the last questions: heard, whose, how long, fetched")
     p.add_argument("--json", action="store_true", dest="json_out")
     p.add_argument("--limit", type=int, default=20)
@@ -269,6 +272,8 @@ def _puck(args) -> int:
     changes: dict = {k: getattr(args, k) for k in ("person", "agent", "fresh_after",
                                                     "wake_word")
                      if getattr(args, k) is not None}
+    if args.follow_up is not None:
+        changes["follow_up"] = args.follow_up == "on"
     if args.people is not None:
         changes["people"] = [p.strip() for p in args.people.split(",") if p.strip()]
     if args.agent_for:
@@ -283,7 +288,7 @@ def _puck(args) -> int:
         changes["agents"] = agents
     if not changes:
         raise ConfigError("change what? --person, --agent, --agent-for, --people, "
-                          "--fresh-after or --wake-word")
+                          "--fresh-after, --wake-word or --follow-up")
     where = settings.path()
     before = where.read_text()
     after = settings.with_puck(before, args.name, changes)
@@ -297,6 +302,8 @@ def _puck(args) -> int:
 
 def _said(value) -> str:
     """A change as `vaani puck` says it back: an agents table as pairs."""
+    if isinstance(value, bool):
+        return "on" if value else "off"
     if not isinstance(value, dict):
         return str(value)
     return ", ".join(f"{k}: {v}" for k, v in value.items()) or "none (the puck's answers everyone)"
@@ -311,7 +318,7 @@ def _runs(args) -> int:
             pucks = [{"name": p.name, "person": p.person, "agent": p.agent,
                       "agents": dict(p.agents),
                       "people": list(p.people), "fresh_after": p.fresh_after,
-                      "wake_word": p.wake_word}
+                      "wake_word": p.wake_word, "follow_up": p.follow_up}
                      for p in settings.load().pucks]
         except ConfigError:
             pucks = []
