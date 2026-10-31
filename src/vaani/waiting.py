@@ -136,11 +136,62 @@ def watch_words(card: str) -> str | None:
     return said
 
 
+#: How much of a schedule's prompt is said aloud, at most.
+SPOKEN_PROMPT = 120
+#: A schedule card's capitals: Yantra's warnings, said as one line.
+_WARNED = ("CANNOT", "NOT A TOOL", "NO TOOL BY", "BUT NOTHING ALLOWED", "CHANGES THINGS",
+           "WITH ANY ARGUMENTS", "IT WORKS YOUR PHONE", "WITHOUT ASKING:")
+
+
+def schedule_words(card: str) -> str | None:
+    """A schedule's card (Yantra's ``New schedule.`` form), said in a
+    sentence: when it runs, what it does, and when it tells you. None for
+    anything else.
+
+    THE SAME RULE AS A WATCH'S. Read out, the card was "Your agent wants
+    to new schedule. At each time it runs with nobody watching. What it
+    does each time..." -- a form, not a question. What it may do without
+    asking stays on the card, and only a warning the card shouts in
+    capitals is said here, as a pointer to it: a list of tool names heard
+    at a speaker helps nobody decide."""
+    lines = [line.rstrip() for line in card.splitlines()]
+    if not lines or not lines[0].startswith("New schedule."):
+        return None
+
+    def under(head: str) -> list[str]:
+        if head not in lines:
+            return []
+        got = []
+        for line in lines[lines.index(head) + 1:]:
+            if not line.startswith("  "):
+                break
+            got.append(line.strip())
+        return got
+
+    does = " ".join(under("What it does each time"))
+    does = does.split("… (all of it", 1)[0].strip()
+    if len(does) > SPOKEN_PROMPT:
+        does = does[:SPOKEN_PROMPT].rsplit(" ", 1)[0] + "…"
+    when = next(iter(under("When")), "")
+    told = next(iter(under("Tell me")), "").split(" -- ", 1)[0]
+    said = "set up a schedule"
+    if when:
+        said += f" that runs {when}"
+    if does:
+        said += f", doing: {does.rstrip('.')}"
+    if told:
+        said += f". It tells you {told}" if not told.startswith("never") else \
+            ". It never tells you; it's kept to read"
+    if any(w in line for line in lines for w in _WARNED):
+        said += ". The card on your phone has a warning: read it before you say yes"
+    return said
+
+
 def spoken_question(ask: dict, how: str = PLAIN) -> str:
     """The question as the puck says it: a link is its site's name; ``how``
     says what answers it (a yes, a longer yes in the asker's voice, a PIN)."""
     summary = str(ask.get("summary") or ask.get("tool") or "do something")
-    summary = watch_words(summary) or summary
+    summary = watch_words(summary) or schedule_words(summary) or summary
     summary = re.sub(r"https?://(?:www\.)?([^/\s]+)\S*", r"\1", summary)
     # a browser names a page's parts e14, e7: said, that's noise
     summary = re.sub(r"\b(click|press|tap|select|check)\s+e\d+\b", r"\1 something on the page",

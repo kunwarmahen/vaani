@@ -14,7 +14,8 @@ import asyncio
 
 from vaani import waiting
 from vaani.waiting import (BY_PIN, PLAIN, Waiting, for_the_task, outcome,
-                           route, spoken_question, watch_words, yes_or_no)
+                           route, schedule_words, spoken_question, watch_words,
+                           yes_or_no)
 
 
 def test_only_a_clear_yes_is_a_yes():
@@ -155,6 +156,47 @@ def test_a_watch_is_asked_in_a_sentence_not_read_as_its_card():
                                      "itself\n  ends once the fare says 'Landed'\nThen\n")
     assert watch_words(dated).endswith(
         "below 571. It runs until Sat 31 Oct 23:59, and ends once the fare says 'Landed'")
+
+
+#: Yantra's card for a schedule (samay_link.explain_create), as Dvara sends it.
+SCHEDULE = """New schedule. At each time it runs with nobody watching.
+
+What it does each time
+  Check the porch light is off and tell me if it isn't
+When
+  at 22:00, Mon–Fri
+Tell me
+  after every run -- in your chat
+May use without asking
+  only tools that read
+
+Anything else that changes something is refused while nobody is there."""
+
+
+def test_a_schedule_is_asked_in_a_sentence_not_read_as_its_card():
+    said = spoken_question({"summary": SCHEDULE})
+    assert said == ("Your agent wants to set up a schedule that runs at 22:00, Mon–Fri, "
+                    "doing: Check the porch light is off and tell me if it isn't. It "
+                    "tells you after every run. Shall I go ahead?")
+    assert "New schedule" not in said and "May use" not in said
+    assert schedule_words("Run `ls`") is None
+
+
+def test_a_schedule_card_s_warning_is_pointed_at_not_read_out():
+    warned = SCHEDULE.replace("  only tools that read\n", "  only tools that read\n  IT SAYS "
+                              '"turn off", BUT NOTHING ALLOWED HERE CAN CHANGE ANYTHING: at '
+                              "its time that step will be refused.\n")
+    said = schedule_words(warned)
+    assert said.endswith("The card on your phone has a warning: read it before you say yes")
+    assert "NOTHING ALLOWED" not in said
+
+
+def test_a_long_schedule_prompt_is_cut_at_a_word_when_said():
+    long = SCHEDULE.replace("Check the porch light is off and tell me if it isn't",
+                            "word " * 60 + "… (all of it under raw arguments)")
+    said = schedule_words(long)
+    assert "raw arguments" not in said and "word…" in said
+    assert len(said) < 260
 
 
 def test_a_yes_while_a_turn_works_starts_nothing():

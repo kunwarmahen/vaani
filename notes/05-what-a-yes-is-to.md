@@ -58,7 +58,12 @@ and after the turn is done they are *new*. 64 passed (was 62).
 
 ## What is not here yet
 
-* **A spoken schedule.** Samay's card would read just as badly; it has
-  no sentence yet.
+* ~~**A spoken schedule.**~~ Samay's card read as *"Your agent wants to
+  new schedule. At each time it runs with nobody watching…"*. It now has
+  its sentence, `schedule_words`: when it runs, what it does, and when it
+  tells you. The tools it may use unasked stay on the card (a list of
+  tool names heard aloud helps nobody decide), and a warning the card
+  shouts in capitals is said as a pointer to the card. Tests in
+  `tests/test_waiting.py`: 68 passed (was 65).
 * **Heard for real.** The rules are tested; the kitchen puck hasn't said
   the new sentence yet (it needs the rebuild).

@@ -120,7 +120,12 @@ google.com. Shall I go ahead?"*. Their clear yes or no goes back
 A watch is asked in a sentence, not read as its card: *"Your agent
 wants to set up a watch called Phoenix nonstop under $571: it looks at
 google.com every 6 hours, and tells you when the fare is below 571.
-Shall I go ahead?"* A yes or a no heard while a turn works with no
+Shall I go ahead?"* So is a schedule: *"Your agent wants to set up a
+schedule that runs at 22:00, Mon–Fri, doing: Check the porch light is
+off. It tells you after every run. Shall I go ahead?"* — what it may do
+without asking stays on the card, and a warning the card shouts is said
+as *"The card on your phone has a warning: read it before you say
+yes"*. A yes or a no heard while a turn works with no
 question put answers nothing and starts nothing: *"I'm still working on
 that. If I need a yes, I'll ask you here."* — sent as a turn of its own,
 "yes, yes, yes" once made a second watch on the same page
