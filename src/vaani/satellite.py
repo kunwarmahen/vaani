@@ -191,16 +191,18 @@ class Satellite:
                       "on": [offers.get(i, i) for i in on]}
         self.noted()
 
-    async def announce(self, url: str, words: str, *, listen_for: str = "") -> bool:
+    async def announce(self, url: str, words: str, *, listen_for: str = "",
+                       asked: bool = True) -> bool:
         """``url`` played by the puck, not as an answer to anything: what a
         long turn came to. ``listen_for``: a person, when the words ask
-        them something -- the puck listens afterwards, no wake word, and
-        that run is their reply. False when the puck can't be reached."""
+        them something (``asked``) or the puck follows up -- the puck
+        listens afterwards, no wake word, and that run is their reply.
+        False when the puck can't be reached."""
         client = self.client
         if client is None or not self.connected.is_set():
             return False
         if listen_for:                 # until it's said, and then some
-            self.following = (listen_for, time.monotonic() + ANNOUNCE_WITHIN, True)
+            self.following = (listen_for, time.monotonic() + ANNOUNCE_WITHIN, asked)
         try:
             await client.send_voice_assistant_announcement_await_response(
                 url, ANNOUNCE_WITHIN, text=words, start_conversation=bool(listen_for))
@@ -208,7 +210,7 @@ class Satellite:
             log.warning("%s: couldn't say it: %s", self.puck.name, exc)
             return False
         if listen_for and self.following and self.following[0] == listen_for:
-            self.following = (listen_for, time.monotonic(), True)  # said: it listens now
+            self.following = (listen_for, time.monotonic(), asked)  # said: it listens now
         return True
 
     async def _start(self, conversation_id: str, flags: int,

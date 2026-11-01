@@ -183,6 +183,38 @@ def test_done_talking_is_ended_not_answered():
     assert dict(events)["INTENT_END"] == {"continue_conversation": "0"}
 
 
+def test_a_question_with_words_after_it_is_still_asked():
+    from vaani.run import asks_back
+    # what the puck said at 20:29 on 2026-10-31 and then didn't listen after
+    said = ("Two things before I set it:\n\n1. Is that the schedule you mean -- a "
+            "one-time check at 20:39?\n2. What location should I use for \"outside "
+            "temperature\" -- I don't have one saved for you yet.")
+    assert asks_back(said)
+    assert asks_back("Want it set lower?") and asks_back('He asked "why?" Then left.')
+    assert asks_back("A long story. " * 60 + "Shall I go on?")  # past the cut too
+    assert not asks_back("It's 61 degrees outside.")
+    assert not asks_back("See https://example.com/a?b=c for more.")
+
+
+def test_no_listening_after_it_says_the_rest_comes_later():
+    async def later(_text, _wav, said):
+        said.later = True
+        return "Shall I? This is taking a while. I'll tell you here when it's done."
+    said, events, _ = drive(QUIET * 10 + tone(1.0) + QUIET * 40, answer=later,
+                            follow_up=True)
+    assert not said.listens
+    assert dict(events)["INTENT_END"] == {"continue_conversation": "0"}
+
+
+def test_whispers_words_for_a_quiet_room_are_filler():
+    from vaani.asking import filler
+    for said in ("Thanks for watching!", "Thank you for watching.", "Please subscribe",
+                 "you", "Thank you so much for watching!"):
+        assert filler(said), said
+    for said in ("thanks, what about tomorrow?", "you can use Boston", "Thank you."):
+        assert not filler(said), said
+
+
 def test_only_the_whole_of_what_was_said_is_done_talking():
     from vaani.asking import done_talking
     for said in ("Thanks.", "Thank you very much", "That's all", "no, thank you",

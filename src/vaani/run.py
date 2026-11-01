@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -76,6 +77,9 @@ class Said:
     #: the puck listens again after this answer (it asked back, or the puck
     #: follows up after every answer)
     listens: bool = False
+    #: this answer is "I'll tell you here when it's done": the rest is said
+    #: by itself later, and there is nothing to reply to until then
+    later: bool = False
     #: this run is the puck listening after an answer that asked nothing:
     #: nothing heard ends it quietly, never "I couldn't make out any words"
     open_follow: bool = False
@@ -95,9 +99,12 @@ class Said:
             log.warning("couldn't record a step: %s", exc)
 
 
-def asks_back(words: str) -> bool:
-    """The answer's last sentence is a question: "Want it set lower?"."""
-    return words.rstrip().rstrip("\"'”’)").endswith("?")
+def asks_back(text: str) -> bool:
+    """The answer asks something: "Want it set lower?", or a question with
+    words after it ("Which city should I use? I don't have one saved.").
+    All of it is looked at, the part cut off as "in the chat" too."""
+    words = aloud(text, longest=len(text) + 1)
+    return re.search(r"\?[\"'”’)]*(?:\s|$)", words) is not None
 
 
 class Run:
@@ -164,11 +171,13 @@ class Run:
                 self.said.tell()
                 self.send(Ev.VOICE_ASSISTANT_INTENT_END, {"continue_conversation": "0"})
                 return self.said
-            # an answer that ends with a question is answered without the wake
+            # an answer that asks something is answered without the wake
             # word: the puck listens again once it has said it -- after every
-            # answer, on a puck that follows up
-            self.said.asked_back = asks_back(aloud(said))
-            self.said.listens = self.said.asked_back or self.follow_up
+            # answer, on a puck that follows up. Never after "I'll tell you
+            # here when it's done": it would hear only the room, and send that
+            self.said.asked_back = asks_back(said)
+            self.said.listens = ((self.said.asked_back or self.follow_up)
+                                 and not self.said.later)
             self.said.tell()
             self.send(Ev.VOICE_ASSISTANT_INTENT_END,
                       {"continue_conversation": "1" if self.said.listens else "0"})

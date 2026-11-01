@@ -54,6 +54,21 @@ DONE_WORDS = re.compile(
     r"|that'?ll do|all good)(?:,? (?:thanks?(?: you)?|bye))?$")
 
 
+#: What Whisper writes for a quiet room, learned from video subtitles. As
+#: the whole of a reply the puck listened for, it is nobody talking: it once
+#: went to the agent as a question ("Thanks for watching!").
+FILLER = re.compile(
+    r"^(?:thanks? (?:you )?(?:so much |very much )?for watching|please subscribe"
+    r"|(?:like and )?subscribe(?: to (?:my|the|our) channel)?"
+    r"|see you (?:in the )?next (?:time|video)|(?:subtitles|captions) by .*|you)$")
+
+
+def filler(text: str) -> bool:
+    """"Thanks for watching!", "Please subscribe", a lone "you"."""
+    words = re.sub(r"[^\w' ,]", "", text.lower()).replace(",", "").strip()
+    return bool(FILLER.match(words))
+
+
 def done_talking(text: str) -> bool:
     """"Thanks", "that's all", "no, thank you", "okay, bye"."""
     words = re.sub(r"[^\w' ,]", "", text.lower()).strip(" ,")

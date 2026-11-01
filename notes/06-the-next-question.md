@@ -65,9 +65,42 @@ speech and `continue_conversation: "0"`. `tests/test_waiting.py`: the
 run after a plain answer is the same person's and marked open, the run
 after an answer that asked back is their reply, as before.
 
-**Not run at the real puck yet**: the running Vaani is the one from
-before this, and the puck is the house's. After a rebuild, set *Follow-up
-questions* on the kitchen puck and ask two things in a row.
+Run at the real puck: see below.
+
+## The first real run, and three gaps it found
+
+At the kitchen puck, with follow-up on: *"Can you tell me outside
+temperature in 10 minutes?"* The agent took longer than a minute, so the
+puck said *"This is taking a while. I'll tell you here when it's done."*
+Three minutes later it said the answer by itself, two numbered
+questions, the last ending *"…I don't have one saved for you yet."* —
+and didn't listen. The reply needed the wake word.
+
+A QUESTION ANYWHERE IS ASKED. The puck listened only when the last
+sentence ended in *"?"*. Agents ask and then explain, or number their
+questions with a remark after; and a long answer said aloud is cut with
+*"The rest is in the chat"*, which hid a question at its end. Now any
+question in the answer, the part cut off too, keeps it listening
+(`run.asks_back`). A stray *"?"* costs a few quiet seconds of listening;
+a missed one costs the conversation.
+
+AN ANSWER SAID LATER IS AN ANSWER. The one said by itself after a long
+turn listened only on a question, whatever the puck's follow-up switch
+said. It follows the same rule as any answer now, and after one that
+asked nothing, silence ends it quietly.
+
+NEVER AFTER "I'LL TELL YOU HERE WHEN IT'S DONE". Follow-up listened after
+that notice too, and heard the room: Whisper wrote *"Thanks for
+watching!"*, and it went to the agent as a new question while the real
+one was still working. There is nothing to reply to until the rest is
+said, so the puck doesn't listen there (`Said.later`). And Whisper's
+fill-ins for silence, learned from video subtitles — *"Thanks for
+watching"*, *"Please subscribe"*, a lone *"you"* — as the whole of a
+reply the puck listened for are nobody talking (`asking.filler`), ended
+like a closing.
+
+`tests/test_run.py` holds the answer the puck failed on as it was said,
+a notice that asks and still isn't listened after, and the fill-ins.
 
 ## What is not here yet
 

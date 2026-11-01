@@ -203,8 +203,12 @@ need a yes, I'll ask you here."*
 
 **When it takes a while.** After a minute the puck says *"This is
 taking a while. I'll tell you here when it's done."* and the ring stops.
-When the answer is ready, the puck says it by itself. If the agent
-needs your yes in the meantime, the puck asks then, and listens.
+When the answer is ready, the puck says it by itself, and if it asks
+you something (or the puck is set to follow up) it listens after, just
+as it does after any answer. If the agent needs your yes in the
+meantime, the puck asks then, and listens. It doesn't listen after
+*"I'll tell you here when it's done"* itself: say the wake word if you
+want to ask something else while it works.
 
 **The wake word.** The puck knows three: *Okay Nabu*, *Hey Jarvis* and
 *Hey Mycroft*, and listens for one. Choose it with `uv run vaani puck
@@ -218,8 +222,8 @@ woke it, however clearly it was said, while *Okay Nabu* works every time;
 if a word doesn't wake yours, switch back.
 
 **When it asks you something back**, you can just answer. If the
-answer ends with a question (*"…it's at 79. Want it set to a different
-temperature?"*), the puck lights up again once it has said it and
+answer asks a question (*"…it's at 79. Want it set to a different
+temperature?"*), even with more words after it, the puck lights up again once it has said it and
 listens, with no wake word. Say *"make it 75"* and it's answered as you,
 in the same conversation. Say nothing and the ring goes out after a few
 seconds.

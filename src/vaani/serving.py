@@ -44,6 +44,8 @@ log = logging.getLogger("vaani")
 
 #: How often the pucks' quiet conversations are looked at.
 FRESHEN_EVERY = 60.0
+#: How a reply that isn't ready yet ends: the rest is said by itself later.
+LATER = "I'll tell you here when it's done."
 
 
 async def serve(conf: Config) -> int:
@@ -116,7 +118,18 @@ async def serve(conf: Config) -> int:
 
 
     async def answer(puck: Puck, text: str, wav: bytes, said: Said) -> str:
+        words = await answer_now(puck, text, wav, said)
+        # the rest is said by itself later: nothing to reply to until then
+        said.later = words.rstrip().endswith(LATER)
+        return words
+
+    async def answer_now(puck: Puck, text: str, wav: bytes, said: Said) -> str:
         now, puck = fresh(puck)
+        if said.follows and asking.filler(text):
+            # Whisper's words for a quiet room, where a reply was listened for
+            said.person, said.how, said.closing = said.follows, "nothing said", True
+            said.tell()
+            return ""
         held = flying.get(puck.name)
         way = route(held, text, said.follows, len(heard_digits(text)) >= SHORTEST)
         if way == "answer":
@@ -177,7 +190,7 @@ async def serve(conf: Config) -> int:
                 asyncio.ensure_future(later(puck, held))
             return words
         asyncio.ensure_future(later(puck, held))
-        return "This is taking a while. I'll tell you here when it's done."
+        return f"This is taking a while. {LATER}"
 
     def question_for(puck: Puck, held: Waiting, ask: dict) -> str:
         """The question as the puck puts it, by what must answer it: the
@@ -193,7 +206,7 @@ async def serve(conf: Config) -> int:
                        if not pins.has(person) else
                        "that needs your PIN, and it's locked here for now")
                 return (spoken_question(ask, "").rstrip() + f" But {why}, so it's on "
-                        "your phone. I'll tell you here when it's done.")
+                        f"your phone. {LATER}")
             return spoken_question(ask, BY_PIN)
         return spoken_question(ask, BY_VOICE if person in prints.known() else PLAIN)
 
@@ -283,8 +296,10 @@ async def serve(conf: Config) -> int:
                 return                 # the reply run carries it on (replied)
             landed(puck, held)
             words = words_of(held, got)
-            await say_later(puck, held, words,
-                            held.person if asks_back(aloud(words)) else "",
+            # listened after like any answer: when it asks, or the puck follows up
+            asked = asks_back(words)
+            listens = asked or fresh(puck)[1].follow_up
+            await say_later(puck, held, words, held.person if listens else "", asked=asked,
                             how=f"finished after {round((time.time() - held.since) / 60)} min")
             return
 
@@ -295,14 +310,15 @@ async def serve(conf: Config) -> int:
             write()
 
     async def say_later(puck: Puck, held: Waiting, words: str, listen_for: str,
-                        how: str = "") -> None:
+                        how: str = "", asked: bool = True) -> None:
         sat = next((s for s in satellites if s.puck.name == puck.name), None)
         url = await speak(aloud(words) or "Done.")
         # under the question it answers, so the history reads as one story
         book.add({"puck": puck.name, "woke_by": "said by itself", "answer": words,
                   "heard": held.question, "person": held.person, "how": how,
                   "url": url, "ended": "announced"})
-        if sat is None or not await sat.announce(url, words, listen_for=listen_for):
+        if sat is None or not await sat.announce(url, words, listen_for=listen_for,
+                                                asked=asked):
             log.warning("%s: couldn't say it at the puck: %s", puck.name, words[:80])
 
     async def speak(words: str) -> str:

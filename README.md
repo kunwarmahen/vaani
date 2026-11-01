@@ -149,13 +149,16 @@ Mycroft); `wake_word = "hey_jarvis"` on a puck, or `vaani puck kitchen
 reconnect. Only the client holding the puck's voice is told its wake
 words, so Vaani reads and sets them on its own connection.
 
-**Talking back, starting over.** An answer that ends with a question
-keeps the puck listening, no wake word: the reply is the same person's,
+**Talking back, starting over.** An answer that asks something (a
+question anywhere in it, not only last) keeps the puck listening, no
+wake word, and so does one said later by itself: the reply is the same person's,
 in the same conversation. A puck set to **follow up** (`follow_up =
 true`, `vaani puck kitchen --follow-up on`, or Sarathi's Settings →
 Vaani) listens again after every answer: the next thing said is the same
 person's next question, and silence or *"thanks, that's all"* ends it
-with nothing said back. Off by default: an open microphone hears the
+with nothing said back, as do Whisper's words for a quiet room
+(*"Thanks for watching!"*). It never listens after *"I'll tell you here
+when it's done"*: there is nothing to reply to yet. Off by default: an open microphone hears the
 radio too ([notes/06](notes/06-the-next-question.md)). *"New conversation"* or *"start over"* starts
 the puck's conversation with that person afresh (Dvara's `/new`), and
 so does a quiet spell: `fresh_after` minutes (30; 0 for never) with no
