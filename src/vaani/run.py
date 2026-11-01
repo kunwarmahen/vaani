@@ -44,7 +44,7 @@ from dataclasses import dataclass, field
 
 from aioesphomeapi import VoiceAssistantEventType as Ev
 
-from vaani.hearing import as_wav
+from vaani.hearing import as_wav, words
 from vaani.listening import EndOfSpeech
 from vaani.speaking import aloud
 
@@ -148,6 +148,7 @@ class Run:
                 return await self._say_failed("stt-provider-unavailable", exc,
                                               COULDNT_HEAR)
             self.said.heard = heard
+            heard = words(heard)       # Whisper's noise is nothing said
             self._took("hear", began)
             self.said.tell()
             if not heard and self.said.open_follow:

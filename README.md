@@ -157,7 +157,8 @@ true`, `vaani puck kitchen --follow-up on`, or Sarathi's Settings →
 Vaani) listens again after every answer: the next thing said is the same
 person's next question, and silence or *"thanks, that's all"* ends it
 with nothing said back, as do Whisper's words for a quiet room
-(*"Thanks for watching!"*). It never listens after *"I'll tell you here
+(*"Thanks for watching!"*); a line of brackets or one character
+repeated is nothing heard at all. It never listens after *"I'll tell you here
 when it's done"*: there is nothing to reply to yet. Off by default: an open microphone hears the
 radio too ([notes/06](notes/06-the-next-question.md)). *"New conversation"* or *"start over"* starts
 the puck's conversation with that person afresh (Dvara's `/new`), and

@@ -8,11 +8,19 @@ is tied to one of them. The sound never leaves the house.
 
 The puck sends 16 kHz, 16-bit, one channel; that is wrapped as a WAV
 here, so the server is told exactly what it is getting.
+
+NOT WORDS IS NOTHING HEARD. For a room with no one talking Whisper can
+write a line of brackets or one character over and over
+("༼༽༽༽༽༽..."); sent on, the agent was asked it as a question. Text
+that is mostly not letters, or one character repeated, is taken as
+nothing said (``words``).
 """
 
 from __future__ import annotations
 
 import io
+import re
+import unicodedata
 import json
 import urllib.error
 import urllib.request
@@ -21,6 +29,23 @@ import wave
 
 #: What a puck sends: 16 kHz, 16-bit samples, one channel.
 RATE, WIDTH, CHANNELS = 16000, 2, 1
+
+
+#: The same character this many times in a row is not speech (a number
+#: may be: "10000000").
+REPEATED = re.compile(r"(\D)\1{7,}", re.S)
+
+
+def words(text: str) -> str:
+    """``text`` when it is words; "" for Whisper's noise, which is mostly
+    not letters or digits (in any script), or one character repeated."""
+    text = text.strip()
+    seen = [c for c in text if not c.isspace()]
+    if not seen or REPEATED.search(text):
+        return ""
+    # a Hindi vowel sign is a mark, not a letter, and is as much a word
+    letters = sum(c.isalnum() or unicodedata.category(c).startswith("M") for c in seen)
+    return text if letters * 2 > len(seen) else ""
 
 
 class HearingError(Exception):

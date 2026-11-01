@@ -99,7 +99,17 @@ watching"*, *"Please subscribe"*, a lone *"you"* — as the whole of a
 reply the puck listened for are nobody talking (`asking.filler`), ended
 like a closing.
 
+THEN IT LOOPED. Each made-up line went to the agent, which took a while,
+so the puck said so and listened again: *"Thanks for watching!"*, then
+a line of *"༼༽༽༽…"*, each a new question in the puck's conversation,
+until a silence. Not listening after the notice breaks the loop; and
+what Whisper writes that is mostly not letters (in any script, a Hindi
+vowel sign counting as one), or one character over and over, is nothing
+heard at all, on any run (`hearing.words`). A number may repeat:
+*"10000000"* is words.
+
 `tests/test_run.py` holds the answer the puck failed on as it was said,
+the bracket line it sent on,
 a notice that asks and still isn't listened after, and the fill-ins.
 
 ## What is not here yet

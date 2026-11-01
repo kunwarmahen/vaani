@@ -206,6 +206,24 @@ def test_no_listening_after_it_says_the_rest_comes_later():
     assert dict(events)["INTENT_END"] == {"continue_conversation": "0"}
 
 
+def test_whispers_noise_is_nothing_said():
+    from vaani.hearing import words
+    # heard at the kitchen puck on 2026-10-31, and sent to the agent then
+    for noise in ("༼" + "༽" * 70, "!!!!!!!!!!", "...", "♪ ♪ ♪", "", "aaaaaaaaaaaa"):
+        assert words(noise) == "", noise
+    for said in ("It's Cary, North Carolina.", "yes 8 8 39", "नमस्ते, कैसे हो?",
+                 "10000000", "set it to 75°", "ok"):
+        assert words(said) == said, said
+
+
+def test_noise_after_an_answer_asks_nobody():
+    async def noise(_wav):
+        return "༼" + "༽" * 40
+    said, events, asked = drive(QUIET * 10 + tone(1.0) + QUIET * 40, hear=noise,
+                                open_follow=True)
+    assert asked == [] and "TTS_START" not in kinds(events)
+
+
 def test_whispers_words_for_a_quiet_room_are_filler():
     from vaani.asking import filler
     for said in ("Thanks for watching!", "Thank you for watching.", "Please subscribe",
