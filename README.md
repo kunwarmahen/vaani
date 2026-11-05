@@ -275,7 +275,8 @@ src/vaani/
 ├── listening.py  the end of a question, from loudness alone
 ├── hearing.py    Whisper, over the OpenAI transcription road
 ├── speaking.py   Piper, over Wyoming; what an answer sounds like read aloud
-├── dvara.py      the words to the person's agent (POST /message), and what to
+├── dvara.py      the words to the person's agent (POST /message, the puck as
+│                 its label, so a phone step says "Vaani: kitchen puck"), and what to
 │                 say back: the answer, plus one sentence when it kept something
 ├── voices.py     who is speaking: a print per person, a small model, sure or the house
 ├── asking.py     whose question it is, or a sample for a print made at the puck; "thanks, that's all" after an answer ends it (notes/06)

@@ -85,3 +85,15 @@ def test_ask_as_someone_else_goes_to_their_agent(config, monkeypatch, capsys):
     assert cli.main(["ask", "what's on today"]) == 0
     assert [(a["person"], a["agent"]) for a in asked] == [("asha", "helper"),
                                                           ("mahen", "minder")]
+
+
+def test_a_question_tells_dvara_which_puck_it_came_from(monkeypatch):
+    # for the phone's log: Sparsh's page says who asked for each step
+    from vaani import dvara as door
+
+    sent = []
+    monkeypatch.setattr(door, "_call", lambda url, token, path, body, timeout:
+                        sent.append(body) or {"text": "hi"})
+    door.ask("what's on", person="asha", agent="minder", puck="kitchen",
+             url="http://d", token="t")
+    assert sent[-1]["came_by"] == "vaani" and sent[-1]["label"] == "kitchen puck"

@@ -55,7 +55,9 @@ def ask(text: str, *, person: str, agent: str, puck: str, url: str, token: str,
     """The answer, as Dvara gives it: ``text`` and ``ok`` at least."""
     return _call(url, token, "/message", {"actor": person, "agent": agent,
                                           "thread": thread(puck), "text": text,
-                                          "came_by": KIND}, timeout)
+                                          "came_by": KIND,
+                                          # which puck, for the phone's log
+                                          "label": f"{puck} puck"}, timeout)
 
 
 def asks(person: str, *, url: str, token: str) -> list[dict]:
