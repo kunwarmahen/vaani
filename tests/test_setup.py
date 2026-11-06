@@ -290,3 +290,11 @@ def test_the_wake_word_is_switched_only_to_one_the_puck_has(caplog):
     assert sat.client.set == [["hey_jarvis"]] and "no wake word 'alexa'" in caplog.text
     with pytest.raises(ConfigError, match="wake_word is one the puck offers"):
         parse(GOOD.format(key="k") + 'wake_word = "x\\"; rm"\n')
+
+
+def test_hearing_is_english_unless_told_otherwise_and_empty_means_guess():
+    # Whisper guessing the language on a few seconds of far-off puck audio
+    # wrote English questions down as Urdu, Telugu and Korean.
+    assert parse("").language == "en"
+    assert parse('[hear]\nlanguage = ""\n').language == ""
+    assert parse('[hear]\nlanguage = "hi"\n').language == "hi"

@@ -145,6 +145,20 @@ whisper.cpp's, LocalAI's); Piper any on the Wyoming road
 Each is an address in `vaani.toml`. Vaani's one dependency is ESPHome's
 own client.
 
+**WHISPER IS TOLD THE LANGUAGE.** Left to guess, Whisper picks a
+language from the first seconds of sound, and a puck's sound is a far-off
+voice in a room. English questions came back as Urdu (`کیا ہوتا ہے؟`),
+Telugu and Korean, and the agent dutifully answered in Urdu. So
+`[hear] language` is `"en"` unless set; `""` hands the guess back to
+Whisper for a house that speaks more than one language. The same clip,
+"What can you do?" with room noise mixed in, against
+`Systran/faster-whisper-small`:
+
+```
+language unset   {"text":"고맙습니다."}
+language = "en"  {"text":"Thank you."}     # Whisper's noise, which Vaani drops
+```
+
 ## Live receipt
 
 Against a real Voice PE (ESPHome 2026.6.0, firmware 26.9.0) while Home

@@ -387,6 +387,7 @@ token_file = "{where.parent / 'dvara.token'}"   # Dvara's token, chmod 600
 [hear]
 url = "{args.whisper}"                     # a Whisper with the OpenAI road
 model = "Systran/faster-whisper-small"
+language = "en"                            # "" lets Whisper guess the language
 
 [speak]
 host = "{host}"                             # a Piper on the Wyoming road

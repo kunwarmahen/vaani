@@ -9,6 +9,11 @@ is tied to one of them. The sound never leaves the house.
 The puck sends 16 kHz, 16-bit, one channel; that is wrapped as a WAV
 here, so the server is told exactly what it is getting.
 
+THE LANGUAGE IS SAID, NOT GUESSED. ``language`` (``[hear]``, "en" by
+default) goes with the request; Whisper guessing from a few seconds of a
+far-off voice wrote English down as Urdu, Telugu and Korean. "" leaves
+the guess to Whisper.
+
 NOT WORDS IS NOTHING HEARD. For a room with no one talking Whisper can
 write a line of brackets or one character over and over
 ("༼༽༽༽༽༽..."); sent on, the agent was asked it as a question. Text

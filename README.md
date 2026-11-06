@@ -216,7 +216,7 @@ token_file = "~/.config/vaani/dvara.token"    # chmod 600
 [hear]
 url = "http://127.0.0.1:11435"
 model = "Systran/faster-whisper-small"
-# language = "en"
+language = "en"           # "" lets Whisper guess; it guesses wrong on short puck audio
 
 [speak]
 host = "127.0.0.1"

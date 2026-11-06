@@ -153,7 +153,7 @@ class Config:
     agent: str = ""
     hear_url: str = "http://127.0.0.1:11435"
     hear_model: str = "Systran/faster-whisper-small"
-    language: str = ""
+    language: str = "en"
     speak_host: str = "127.0.0.1"
     speak_port: int = 10200
     voice: str = ""
@@ -287,7 +287,7 @@ def parse(text: str, where: str = "vaani.toml") -> Config:
         agent=str(d.get("agent", "")),
         hear_url=str(h.get("url", base.hear_url)).rstrip("/"),
         hear_model=str(h.get("model", base.hear_model)),
-        language=str(h.get("language", "")),
+        language=str(h.get("language", base.language)),
         speak_host=str(s.get("host", base.speak_host)),
         speak_port=_port(s.get("port", base.speak_port), where),
         voice=str(s.get("voice", "")),
