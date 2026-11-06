@@ -149,17 +149,16 @@ own client.
 language from the first seconds of sound, and a puck's sound is a far-off
 voice in a room. English questions came back as Urdu (`کیا ہوتا ہے؟`),
 Telugu and Korean, and the agent dutifully answered in Urdu. So
-`[hear] language` is `"en"` unless set; A puck can have its own
+`[hear] language` is `"en"` unless set. A puck can have its own
 (`language = "hi"`; `vaani puck kitchen --language hi`; Sarathi's
 Settings → Vaani), read again on every question, and `"auto"` hands the
 guess back to Whisper for a puck where people ask in more than one
-language. The same clip,
-"What can you do?" with room noise mixed in, against
-`Systran/faster-whisper-small`:
+language. The same clip, "What can you do?" with room noise mixed in,
+against `Systran/faster-whisper-small`:
 
 ```
-language unset   {"text":"고맙습니다."}
-language = "en"  {"text":"Thank you."}     # Whisper's noise, which Vaani drops
+language = "auto"  {"text":"고맙습니다."}
+language = "en"    {"text":"Thank you."}     # Whisper's noise, which Vaani drops
 ```
 
 ## Live receipt
@@ -220,6 +219,10 @@ played.
 
 ## What is not here yet
 
+* **A language per person at one puck.** Whisper must be told the
+  language before it hears the question, and who is asking is known only
+  from that same sound. A puck where people mix languages is set to
+  `"auto"` and takes Whisper's guess.
 * ~~**Who is speaking.**~~ A voice print per person, made at the puck,
   matched here; unsure is the puck's own person, said so
   ([02](02-whose-question.md)).

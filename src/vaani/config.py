@@ -14,6 +14,7 @@ never a library pulled in here.
     [hear]
     url = "http://127.0.0.1:11435"          # faster-whisper-server
     model = "Systran/faster-whisper-small"
+    language = "en"                          # the default; "auto": Whisper guesses
 
     [speak]
     host = "127.0.0.1"                       # wyoming-piper

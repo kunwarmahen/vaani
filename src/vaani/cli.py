@@ -13,7 +13,9 @@
     vaani status [--json]           is it here, is it listening, which pucks
     vaani puck NAME [--person P] [--agent A] [--people a,b] [--fresh-after MIN]
                     [--wake-word hey_jarvis] [--agent-for asha=helper]
-                                    change who a puck answers (read at its next question)
+                    [--follow-up on|off] [--language hi|auto]
+                                    change who a puck answers and how it hears
+                                    (read at its next question)
     vaani runs [--json]             the last questions: heard, whose, how long, fetched
     vaani page                      the page's address, with its key
     vaani voices fetch              the speaker model (once), to tell voices apart

@@ -256,6 +256,7 @@ conversation with Ravi"* is a question like any other.
 | `vaani status` says *not listening: …* (Sarathi's Check: *the kitchen puck isn't listening*) | Vaani is running but can't hold the puck; the reason is on the line | the reason says which: the address, the key, or Home Assistant |
 | *"Sorry, I couldn't reach your agent just now."* | Dvara isn't running, or the token is wrong | `vaani ask "hi"` says which |
 | *"Sorry, I couldn't make out any words."* | Whisper heard nothing, or isn't running | `vaani hear q.wav` |
+| Vaani's page shows your English written in another script (Urdu, Telugu…), and the answer comes back in it | Whisper was left to guess the language | set the puck's language: **Language it hears** in Sarathi's Settings → Vaani, or `vaani puck kitchen --language en` |
 | The ring finishes but no sound | The puck can't reach port 8799 | no `answer fetched by …` line in the log: the `ufw` line in Step 5; `[serve] address` if this computer has several |
 | `… can be read by others; chmod 600 …` | The key file is open to others | run the `chmod` it shows |
 | `/dev/ttyACM0 can't be opened` (backup) | you may not open the puck's USB port | the two `sudo` lines in Step 2 |
