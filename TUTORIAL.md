@@ -228,6 +228,13 @@ listens, with no wake word. Say *"make it 75"* and it's answered as you,
 in the same conversation. Say nothing and the ring goes out after a few
 seconds.
 
+**If the puck writes down your English as another language** (Vaani's
+page shows what it heard), Whisper is guessing. Vaani tells it English
+unless you say otherwise; a puck where everyone asks in Hindi gets
+`uv run vaani puck kitchen --language hi`, or **Language it hears** in
+Sarathi's **Settings → Vaani**. *Let Whisper guess* (`--language auto`)
+is for a puck where people mix languages.
+
 **To start a new conversation**, say the wake word, then *"new
 conversation"* (or *"start over"*, *"start fresh"*). The puck says
 *"Starting fresh. What would you like to ask?"* and listens for your

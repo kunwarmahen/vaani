@@ -110,6 +110,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--follow-up", dest="follow_up", choices=("on", "off"), default=None,
                    help="on: after every answer the puck listens again for the same "
                    "person's next question, no wake word")
+    p.add_argument("--language", default=None, metavar="CODE",
+                   help="what Whisper is told the questions are in: en, hi, ...; auto: "
+                   "Whisper guesses; \"\": the [hear] one")
     p = sub.add_parser("runs", help="the last questions: heard, whose, how long, fetched")
     p.add_argument("--json", action="store_true", dest="json_out")
     p.add_argument("--limit", type=int, default=20)
@@ -181,7 +184,7 @@ def main(argv: list[str] | None = None) -> int:
             return asyncio.run(_check(conf, args.puck))
         if args.command == "hear":
             print(hearing.hear(Path(args.file).read_bytes(), url=conf.hear_url,
-                               model=conf.hear_model, language=conf.language))
+                               model=conf.hear_model, language=conf.language_for()))
             return 0
         if args.command == "say":
             Path(args.out).write_bytes(speaking.speak(
@@ -270,7 +273,7 @@ def _voices(args) -> int:
 
 def _puck(args) -> int:
     changes: dict = {k: getattr(args, k) for k in ("person", "agent", "fresh_after",
-                                                    "wake_word")
+                                                    "wake_word", "language")
                      if getattr(args, k) is not None}
     if args.follow_up is not None:
         changes["follow_up"] = args.follow_up == "on"
@@ -288,7 +291,7 @@ def _puck(args) -> int:
         changes["agents"] = agents
     if not changes:
         raise ConfigError("change what? --person, --agent, --agent-for, --people, "
-                          "--fresh-after, --wake-word or --follow-up")
+                          "--fresh-after, --wake-word, --follow-up or --language")
     where = settings.path()
     before = where.read_text()
     after = settings.with_puck(before, args.name, changes)
@@ -314,15 +317,19 @@ def _runs(args) -> int:
     got = runs.read(max(1, args.limit))
     if args.json_out:
         prints = voices.Prints(settings.path().parent / "voices")
+        hears = ""
         try:
+            hears = settings.load().language
             pucks = [{"name": p.name, "person": p.person, "agent": p.agent,
                       "agents": dict(p.agents),
                       "people": list(p.people), "fresh_after": p.fresh_after,
-                      "wake_word": p.wake_word, "follow_up": p.follow_up}
+                      "wake_word": p.wake_word, "follow_up": p.follow_up,
+                      "language": p.language}
                      for p in settings.load().pucks]
         except ConfigError:
             pucks = []
         print(json.dumps({"format": runs.FORMAT, "runs": got, "pucks": pucks,
+                          "language": hears, "languages": settings.LANGUAGES,
                           "voices": [{"person": person, "samples": kept.get("samples")}
                                      for person, kept in prints.known().items()],
                           "enrolling": asking.enrolling()}, indent=2))
@@ -387,7 +394,7 @@ token_file = "{where.parent / 'dvara.token'}"   # Dvara's token, chmod 600
 [hear]
 url = "{args.whisper}"                     # a Whisper with the OpenAI road
 model = "Systran/faster-whisper-small"
-language = "en"                            # "" lets Whisper guess the language
+language = "en"                            # "auto" lets Whisper guess the language
 
 [speak]
 host = "{host}"                             # a Piper on the Wyoming road

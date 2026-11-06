@@ -11,8 +11,8 @@ here, so the server is told exactly what it is getting.
 
 THE LANGUAGE IS SAID, NOT GUESSED. ``language`` (``[hear]``, "en" by
 default) goes with the request; Whisper guessing from a few seconds of a
-far-off voice wrote English down as Urdu, Telugu and Korean. "" leaves
-the guess to Whisper.
+far-off voice wrote English down as Urdu, Telugu and Korean. A puck may
+say its own (``language = "hi"``), and "auto" leaves the guess to Whisper.
 
 NOT WORDS IS NOTHING HEARD. For a room with no one talking Whisper can
 write a line of brackets or one character over and over

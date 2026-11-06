@@ -149,6 +149,14 @@ Mycroft); `wake_word = "hey_jarvis"` on a puck, or `vaani puck kitchen
 reconnect. Only the client holding the puck's voice is told its wake
 words, so Vaani reads and sets them on its own connection.
 
+**The language it hears.** Whisper is told what language the questions
+are in: `[hear] language`, `"en"` unless set, for every puck, and a
+puck's own `language` over it (`vaani puck kitchen --language hi`, or
+Sarathi's Settings → Vaani, *Language it hears*). `"auto"` lets Whisper
+guess, for a puck where people ask in more than one language; a guess on
+a far-off voice is often wrong (English heard as Urdu or Telugu). A
+change holds from the next question.
+
 **Talking back, starting over.** An answer that asks something (a
 question anywhere in it, not only last) keeps the puck listening, no
 wake word, and so does one said later by itself: the reply is the same person's,
@@ -216,7 +224,7 @@ token_file = "~/.config/vaani/dvara.token"    # chmod 600
 [hear]
 url = "http://127.0.0.1:11435"
 model = "Systran/faster-whisper-small"
-language = "en"           # "" lets Whisper guess; it guesses wrong on short puck audio
+language = "en"           # "auto" lets Whisper guess; it guesses wrong on puck audio
 
 [speak]
 host = "127.0.0.1"
@@ -242,6 +250,7 @@ agent = "minder"                             # who answers, unless someone has t
 fresh_after = 30              # minutes quiet, then a new conversation (0: never)
 # wake_word = "hey_jarvis"    # one the puck has (okay_nabu, hey_jarvis, hey_mycroft)
 # follow_up = true            # listen again after every answer, no wake word
+# language = "hi"             # what this puck hears; unset: [hear]'s; "auto": Whisper guesses
 
 # [voices]
 # threshold = 0.6                            # this close to a print to be that person

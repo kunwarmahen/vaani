@@ -149,8 +149,11 @@ own client.
 language from the first seconds of sound, and a puck's sound is a far-off
 voice in a room. English questions came back as Urdu (`کیا ہوتا ہے؟`),
 Telugu and Korean, and the agent dutifully answered in Urdu. So
-`[hear] language` is `"en"` unless set; `""` hands the guess back to
-Whisper for a house that speaks more than one language. The same clip,
+`[hear] language` is `"en"` unless set; A puck can have its own
+(`language = "hi"`; `vaani puck kitchen --language hi`; Sarathi's
+Settings → Vaani), read again on every question, and `"auto"` hands the
+guess back to Whisper for a puck where people ask in more than one
+language. The same clip,
 "What can you do?" with room noise mixed in, against
 `Systran/faster-whisper-small`:
 

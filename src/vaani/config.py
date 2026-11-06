@@ -38,6 +38,7 @@ never a library pulled in here.
     fresh_after = 30                         # minutes quiet, then a new conversation (0: never)
     wake_word = "hey_jarvis"                 # one the puck has; unset: as the puck is
     follow_up = true                         # listens again after each answer, no wake word
+    language = "hi"                          # heard as; unset: [hear]'s; "auto": a guess
 
     [voices]                                 # telling voices apart (optional)
     threshold = 0.6
@@ -96,7 +97,7 @@ KNOWN = {
     "serve": {"address", "host", "port"},
     "page": {"host", "port"},
     "puck": {"name", "host", "port", "key_file", "person", "agent", "agents", "people",
-             "fresh_after", "wake_word", "follow_up"},
+             "fresh_after", "wake_word", "follow_up", "language"},
     "voices": {"threshold", "margin"},
 }
 
@@ -127,6 +128,9 @@ class Puck:
     #: word, and what is said is the same person's next question. Off: only
     #: an answer that asks something back is listened after.
     follow_up: bool = False
+    #: The language Whisper is told the questions here are in ("en", "hi");
+    #: "auto" lets Whisper guess; "" is [hear]'s.
+    language: str = ""
 
     def agent_for(self, person: str) -> str:
         """The agent that answers ``person`` here; "" for the file's."""
@@ -165,6 +169,12 @@ class Config:
     threshold: float = 0.6
     margin: float = 0.15
     pucks: tuple[Puck, ...] = field(default_factory=tuple)
+
+    def language_for(self, puck: Puck | None = None) -> str:
+        """What Whisper is told: the puck's language, else [hear]'s; "" to
+        let it guess (which "auto" means)."""
+        said = puck.language if puck and puck.language else self.language
+        return "" if said == "auto" else said
 
     def dvara_token(self) -> str:
         env = os.environ.get("VAANI_DVARA_TOKEN", "").strip()
@@ -279,7 +289,9 @@ def parse(text: str, where: str = "vaani.toml") -> Config:
                                                name),
                           wake_word=_wake_word(row.get("wake_word", ""), where, name),
                           follow_up=_switch(row.get("follow_up", False), where, name,
-                                            "follow_up")))
+                                            "follow_up"),
+                          language=_language(row.get("language", ""), where,
+                                             f"puck {name}: language")))
     base = Config()
     return Config(
         dvara_url=str(d.get("url", base.dvara_url)).rstrip("/"),
@@ -287,7 +299,7 @@ def parse(text: str, where: str = "vaani.toml") -> Config:
         agent=str(d.get("agent", "")),
         hear_url=str(h.get("url", base.hear_url)).rstrip("/"),
         hear_model=str(h.get("model", base.hear_model)),
-        language=str(h.get("language", base.language)),
+        language=_language(h.get("language", base.language), where, "hear.language"),
         speak_host=str(s.get("host", base.speak_host)),
         speak_port=_port(s.get("port", base.speak_port), where),
         voice=str(s.get("voice", "")),
@@ -320,7 +332,7 @@ def with_puck(text: str, name: str, changes: dict[str, str | int | list[str]]) -
     start, end = block
     for key, value in changes.items():
         if key not in ("person", "agent", "agents", "people", "fresh_after", "wake_word",
-                       "follow_up"):
+                       "follow_up", "language"):
             raise ConfigError(f"a puck's {key} isn't changed here")
         table = (", ".join(f'{k} = "{v}"' for k, v in value.items())
                  if isinstance(value, dict) else "")
@@ -360,6 +372,21 @@ def _switch(value, where: str, puck: str, key: str) -> bool:
     if not isinstance(value, bool):
         raise ConfigError(f"{where}: puck {puck}: {key} is true or false")
     return value
+
+
+#: The languages offered by name on the pages; any Whisper code is taken.
+LANGUAGES = {"en": "English", "hi": "Hindi", "te": "Telugu", "ta": "Tamil",
+             "ur": "Urdu", "bn": "Bengali", "mr": "Marathi", "gu": "Gujarati",
+             "pa": "Punjabi", "kn": "Kannada", "ml": "Malayalam", "es": "Spanish",
+             "fr": "French", "de": "German", "auto": "Let Whisper guess"}
+
+
+def _language(value, where: str, what: str) -> str:
+    """A Whisper language code ("en", "hi", "haw"), "auto", or ""."""
+    if not isinstance(value, str) or not re.fullmatch(r"[a-z]{2,3}|auto|", value.strip()):
+        raise ConfigError(f"{where}: {what} is a language code like \"en\" or \"hi\", "
+                          f"or \"auto\" to let Whisper guess; not {value!r}")
+    return value.strip()
 
 
 def _wake_word(value, where: str, puck: str) -> str:

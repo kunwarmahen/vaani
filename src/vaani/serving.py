@@ -101,9 +101,13 @@ async def serve(conf: Config) -> int:
 
     write()
 
-    async def hear(wav: bytes) -> str:
+    async def hear(wav: bytes, puck: Puck) -> str:
+        # the language as vaani.toml says now, so a change on a page holds
+        # from the next question
+        now, current = fresh(puck)
         return await asyncio.to_thread(hearing.hear, wav, url=conf.hear_url,
-                                       model=conf.hear_model, language=conf.language)
+                                       model=conf.hear_model,
+                                       language=now.language_for(current))
 
     def fresh(puck: Puck) -> tuple[Config, Puck]:
         """vaani.toml as it is now, so who a puck answers (person, agent,
@@ -380,7 +384,8 @@ async def serve(conf: Config) -> int:
                         log.info("%s: %s's conversation started over after %d min quiet",
                                  current.name, person, current.fresh_after)
 
-    satellites += [Satellite(p, hear=hear, answer=answer, speak=speak, told=told, done=done,
+    satellites += [Satellite(p, hear=lambda wav, p=p: hear(wav, p), answer=answer,
+                             speak=speak, told=told, done=done,
                              begun=begun, noted=write, seconds_of=clips.seconds,
                              follow_up=lambda p=p: fresh(p)[1].follow_up)
                    for p in conf.pucks]

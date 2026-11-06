@@ -19,7 +19,7 @@ import pytest
 
 from vaani import keys
 from vaani.clips import Clips
-from vaani.config import ConfigError, parse
+from vaani.config import ConfigError, parse, with_puck
 
 GOOD = '''
 [[puck]]
@@ -292,9 +292,27 @@ def test_the_wake_word_is_switched_only_to_one_the_puck_has(caplog):
         parse(GOOD.format(key="k") + 'wake_word = "x\\"; rm"\n')
 
 
-def test_hearing_is_english_unless_told_otherwise_and_empty_means_guess():
+
+def test_hearing_is_english_unless_told_otherwise():
     # Whisper guessing the language on a few seconds of far-off puck audio
     # wrote English questions down as Urdu, Telugu and Korean.
-    assert parse("").language == "en"
-    assert parse('[hear]\nlanguage = ""\n').language == ""
-    assert parse('[hear]\nlanguage = "hi"\n').language == "hi"
+    assert parse("").language_for() == "en"
+    assert parse('[hear]\nlanguage = "auto"\n').language_for() == ""
+    assert parse('[hear]\nlanguage = ""\n').language_for() == ""
+    assert parse('[hear]\nlanguage = "hi"\n').language_for() == "hi"
+
+
+def test_a_puck_can_hear_its_own_language_and_otherwise_hears_the_houses():
+    conf = parse('[hear]\nlanguage = "en"\n' + GOOD.format(key="k"))
+    assert conf.language_for(conf.pucks[0]) == "en"
+    hindi = parse(with_puck(GOOD.format(key="k"), "kitchen", {"language": "hi"}))
+    assert hindi.language_for(hindi.pucks[0]) == "hi"
+    guess = parse(with_puck(GOOD.format(key="k"), "kitchen", {"language": "auto"}))
+    assert guess.language_for(guess.pucks[0]) == ""
+
+
+def test_a_language_that_isnt_a_code_is_refused_not_sent():
+    with pytest.raises(ConfigError, match="language code"):
+        parse('[hear]\nlanguage = "English"\n')
+    with pytest.raises(ConfigError, match="language code"):
+        with_puck(GOOD.format(key="k"), "kitchen", {"language": "hi; rm"})
