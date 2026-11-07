@@ -150,7 +150,7 @@ async def serve(conf: Config) -> int:
             said.tell()
             return ""
         asked = await asyncio.to_thread(asking.whose, now, puck, text, wav, prints,
-                                        said.follows)
+                                        said.follows, said.open_follow)
         said.person, said.how = asked.person, asked.how
         said.tell()                    # whose it is, on the page before the answer
         if asked.sample:

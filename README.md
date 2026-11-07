@@ -163,7 +163,8 @@ wake word, and so does one said later by itself: the reply is the same person's,
 in the same conversation. A puck set to **follow up** (`follow_up =
 true`, `vaani puck kitchen --follow-up on`, or Sarathi's Settings →
 Vaani) listens again after every answer: the next thing said is the same
-person's next question, and silence or *"thanks, that's all"* ends it
+person's next question (on a puck with `people`, unless the voice clearly
+matches another of them, whose question it then is), and silence or *"thanks, that's all"* ends it
 with nothing said back, as do Whisper's words for a quiet room
 (*"Thanks for watching!"*); a line of brackets or one character
 repeated is nothing heard at all. It never listens after *"I'll tell you here

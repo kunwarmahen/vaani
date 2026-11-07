@@ -116,10 +116,25 @@ def _enrolling(puck: str) -> dict | None:
 
 
 def whose(conf: Config, puck: Puck, text: str, wav: bytes, prints: Prints,
-          follows: str = "") -> Asked:
+          follows: str = "", open_follow: bool = False) -> Asked:
     """``follows``: the person whose answer asked something back, when this
-    is the puck listening again without its wake word -- their reply."""
+    is the puck listening again without its wake word -- their reply.
+
+    AN OPEN FOLLOW-UP IS CHECKED BY VOICE ON A SHARED PUCK. After an answer
+    that asked nothing (``open_follow``, the puck's follow-up switch), the
+    next question may be anyone's in the room: Asha asking into Mahen's
+    follow-up was taken as Mahen, and her question went to his agent. So
+    on a puck with ``people``, the voice is matched as for a woken
+    question, and a CLEAR match to someone else makes it theirs. Anything
+    less -- unsure, too short to tell, nobody enrolled -- stays with the
+    person just answered, as before: the one standing there, mid-
+    conversation. A reply to a question the puck asked is never moved: a
+    yes is checked where it decides something (serving.voice_of)."""
     if follows and (follows == puck.person or follows in puck.people):
+        if open_follow and puck.people and prints.known():
+            other = _someone_else(conf, puck, wav, prints, follows)
+            if other is not None:
+                return Asked(other.person, text, how=other.how)
         return Asked(follows, text, how="replying to the puck")
     note = _enrolling(puck.name)
     if note is not None:
@@ -135,6 +150,24 @@ def whose(conf: Config, puck: Puck, text: str, wav: bytes, prints: Prints,
                      how="the last voice sample")
     if not puck.people:
         return Asked(puck.person, text, how="the puck's person")
+    return _by_voice(conf, puck, text, wav, prints)
+
+
+def _someone_else(conf: Config, puck: Puck, wav: bytes, prints: Prints,
+                  follows: str) -> Asked | None:
+    """A follow-up clearly in another of this puck's people's voice, or None."""
+    try:
+        found = prints.match(wav, puck.people, threshold=conf.threshold, margin=conf.margin)
+    except VoiceError:
+        return None                    # too short to tell: the one just answered
+    log.info("%s: follow-up in the voice of %s (%.2f, next %.2f)", puck.name,
+             found.person or "nobody sure", found.score, found.runner_up)
+    if found.person is None or found.person == follows:
+        return None
+    return Asked(found.person, "", how=f"a follow-up in their voice ({found.score:.2f})")
+
+
+def _by_voice(conf: Config, puck: Puck, text: str, wav: bytes, prints: Prints) -> Asked:
     named, rest = said_name(text, puck.people)
     if named is not None:
         return Asked(named, rest, how="said their name")

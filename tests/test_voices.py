@@ -33,12 +33,20 @@ person = "mahen"
 
 
 class FakePrints:
-    def __init__(self, match: Match | None = None) -> None:
+    def __init__(self, match: Match | None = None, known=("mahen", "asha")) -> None:
         self.found = match or Match(None, 0.0, 0.0)
         self.enrolled: list[tuple[str, bool]] = []
+        self.people = {p: {} for p in known}
+        self.asked = 0
+
+    def known(self):
+        return self.people
 
     def match(self, wav, people, *, threshold, margin):
         assert threshold == 0.6 and margin == 0.15
+        self.asked += 1
+        if isinstance(self.found, Exception):
+            raise self.found
         return self.found
 
     def enroll(self, person, wavs, *, add=False):
@@ -115,3 +123,35 @@ def test_a_reply_without_the_wake_word_is_the_person_who_was_asked(conf):
     # a follow-up never makes someone the puck doesn't serve the asker
     got = asking.whose(conf, kitchen(conf), "make it 75", b"wav", prints, follows="ravi")
     assert got.person == "asha"
+
+
+def test_an_open_follow_up_in_someone_elses_clear_voice_is_theirs(conf):
+    # Asha asks into Mahen's follow-up: her question, her agent
+    prints = FakePrints(Match("asha", 0.91, 0.42))
+    got = asking.whose(conf, kitchen(conf), "and my mail?", b"wav", prints,
+                       follows="mahen", open_follow=True)
+    assert got.person == "asha" and got.text == "and my mail?"
+    assert got.how.startswith("a follow-up in their voice")
+
+
+def test_an_open_follow_up_stays_with_the_one_answered_unless_sure(conf):
+    from vaani.voices import VoiceError
+    for found in (Match(None, 0.55, 0.5), Match("mahen", 0.9, 0.3),
+                  VoiceError("too short to tell")):
+        got = asking.whose(conf, kitchen(conf), "and tomorrow?", b"wav",
+                           FakePrints(found), follows="mahen", open_follow=True)
+        assert got.person == "mahen" and got.how == "replying to the puck"
+
+
+def test_a_reply_to_a_question_and_a_puck_without_people_never_match(conf):
+    prints = FakePrints(Match("asha", 0.95, 0.1))
+    got = asking.whose(conf, kitchen(conf), "yes", b"wav", prints, follows="mahen")
+    assert got.person == "mahen" and prints.asked == 0     # asked back: timing alone
+    study = conf.puck("study")                              # one person's puck
+    got = asking.whose(conf, study, "and tomorrow?", b"wav", prints,
+                       follows="mahen", open_follow=True)
+    assert got.person == "mahen" and prints.asked == 0
+    nobody = FakePrints(Match("asha", 0.95, 0.1), known=())
+    got = asking.whose(conf, kitchen(conf), "and tomorrow?", b"wav", nobody,
+                       follows="mahen", open_follow=True)
+    assert got.person == "mahen" and nobody.asked == 0       # no prints: nothing to match

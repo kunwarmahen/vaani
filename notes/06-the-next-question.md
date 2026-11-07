@@ -54,6 +54,30 @@ THE SETTING IS READ EACH QUESTION. As for who a puck answers as, the
 switch is read from vaani.toml at each run, so a change in Settings
 holds from the next question, with no restart.
 
+## Someone else in the room
+
+**AN OPEN FOLLOW-UP IS CHECKED BY VOICE ON A SHARED PUCK.** By timing
+alone, Asha asking *"and my mail?"* into Mahen's follow-up was taken as
+Mahen, and her mail question went to his agent. A follow-up after an
+answer that asked nothing (`open_follow`) on a puck with `people` now
+has its voice matched against their prints, the same match a woken
+question gets (`asking.whose`). A CLEAR match to someone else makes the
+question theirs (*"a follow-up in their voice (0.91)"* on the page).
+Anything less stays with the person just answered: unsure, too short to
+tell, nobody enrolled, a one-person puck. The one standing there,
+mid-conversation, is still the best guess when the voice can't say.
+
+A reply to a question the puck asked is never moved. It is usually a
+*yes* or a number, too short for a print, and a yes is checked by voice
+where it decides something (`serving.voice_of`). The match runs on the
+recording already taken; what it adds is one voice print's worth of
+work, the same as for any woken question on a shared puck.
+
+`tests/test_voices.py`: an open follow-up in someone else's clear voice
+is theirs; unsure, the same person, or too short stays with the one
+answered; a reply to a question, a one-person puck and a puck with no
+prints never match at all.
+
 ## Receipt
 
 `tests/test_run.py` drives a run with no puck, no Whisper and no model:
@@ -114,9 +138,9 @@ a notice that asks and still isn't listened after, and the fill-ins.
 
 ## What is not here yet
 
-* **A follow-up from someone else.** It is the person just answered.
-  Asha speaking into Mahen's follow-up is taken as Mahen; a voice match
-  on follow-ups would tell them apart, at the cost of a sentence's
-  wait.
+* ~~**A follow-up from someone else.**~~ Matched by voice on a shared
+  puck, moved only on a clear match (above).
+* **A reply from someone else.** A reply to a question the puck asked is
+  the asker's by timing; only a *yes* to a change is checked by voice.
 * **How long it listens.** The puck's own listening time decides, not
   Vaani; a setting for it would need the puck's firmware.
